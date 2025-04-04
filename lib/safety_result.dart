@@ -106,7 +106,7 @@ class SafetyResultScreenState extends State<SafetyResultScreen>
       final safetyResponse = await supabase
           .from('Safety Rating')
           .select(
-            'Ingredient_Id, Ingredient_Name, Score, Other_Concerns, '
+            'Ingredient_Id, Ingredient_Name, Benefits, Score, Other_Concerns, '
             'Cancer_Concern, Allergies_Immunotoxicity, '
             'Developmental_Reproductive_Toxicity, Function, Comodogenic, Irritation',
           )
@@ -468,6 +468,35 @@ bool _hasSafetyWarning(Map<String, dynamic> ingredient) {
 
 
   Widget _buildCompatibilityTab() {
+    // Sort ingredients based on priority:
+    // 1. Ingredients with compatibility data (top)
+    // 2. Ingredients with safety warnings (middle)
+    // 3. Ingredients with no data (bottom)
+    final sortedIngredients = List<Map<String, dynamic>>.from(ingredients)
+      ..sort((a, b) {
+        // Check if ingredients have compatibility data
+        final aHasCompatibility = compatibilityResults
+            .any((r) => r['ingredient_name'] == a['Ingredient_Name']);
+        final bHasCompatibility = compatibilityResults
+            .any((r) => r['ingredient_name'] == b['Ingredient_Name']);
+        
+        // Check if ingredients have safety warnings
+        final aHasSafetyWarning = _hasSafetyWarning(a);
+        final bHasSafetyWarning = _hasSafetyWarning(b);
+        
+        // Sort by compatibility data first
+        if (aHasCompatibility && !bHasCompatibility) return -1;
+        if (!aHasCompatibility && bHasCompatibility) return 1;
+        
+        // If both have compatibility data or both don't, sort by safety warning
+        if (aHasSafetyWarning && !bHasSafetyWarning) return -1;
+        if (!aHasSafetyWarning && bHasSafetyWarning) return 1;
+        
+        // If both have same status, maintain original order
+        return 0;
+      });
+
+      
   final skinProfile = Provider.of<SkinProfileProvider>(context);
 
   return SingleChildScrollView(
@@ -573,8 +602,7 @@ bool _hasSafetyWarning(Map<String, dynamic> ingredient) {
               const SizedBox(height: 20),
 
               // Show all ingredients with their compatibility data
-              ...ingredients.map((ingredient) {
-                // Find compatibility results for this ingredient
+                ...sortedIngredients.map((ingredient) {               
                 final results = compatibilityResults
                     .where((r) => r['ingredient_name'] == ingredient['Ingredient_Name'])
                     .toList();
@@ -592,21 +620,7 @@ bool _hasSafetyWarning(Map<String, dynamic> ingredient) {
     ),
   );
 }
-  Map<String, List<Map<String, dynamic>>> _groupCompatibilityByIngredient() {
-    Map<String, List<Map<String, dynamic>>> groupedData = {};
-
-    for (var result in compatibilityResults) {
-      String ingredientName = result['ingredient_name'] ?? 'Unknown';
-      if (!groupedData.containsKey(ingredientName)) {
-        groupedData[ingredientName] = [];
-      }
-      groupedData[ingredientName]!.add(result);
-    }
-
-    return groupedData;
-  }
-
-
+ 
 Widget _buildCompatibilityCard(
   String ingredientName, 
   List<Map<String, dynamic>> results,
@@ -615,6 +629,7 @@ Widget _buildCompatibilityCard(
   final hasCompatibilityData = results.isNotEmpty;
   final isSuitableOverall = !results.any((r) => r['is_suitable'] == false);
   final hasSafetyWarning = _hasSafetyWarning(ingredient);
+  final benefits = ingredient['Benefits']?.toString() ?? 'No benefits data available';
 
   return Container(
     margin: const EdgeInsets.symmetric(vertical: 8),
@@ -655,11 +670,61 @@ Widget _buildCompatibilityCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Show all compatibility results in consistent format
-              ...results.map(_buildCompatibilityResult),
+              // Benefits section
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+
+                    // Compatibility results
+                    if (results.isNotEmpty) ...[
+                      const Text(
+                        'Checking Suitability:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...results.map(_buildCompatibilityResult),
+                    ],
+
+              const Divider(),
+
+                    Text(
+                      '🌟 Benefits',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      benefits,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               
-              // Safety warnings without divider
+              
+              
+              // Safety warnings
               if (hasSafetyWarning) ...[
+              const Divider(),
+                const Text(
+                  'Safety Warnings:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 8),
                 _buildSafetyWarning('Allergies/Immunotoxicity', ingredient['Allergies_Immunotoxicity']),
                 _buildSafetyWarning('Irritation', ingredient['Irritation']),
                 _buildSafetyWarning('Comedogenic', ingredient['Comodogenic']),
@@ -676,18 +741,34 @@ Widget _buildCompatibilityResult(Map<String, dynamic> result) {
   final isSuitable = result['is_suitable'] == true;
   final isSkinType = result['type'] == 'skin_type';
 
-  return ListTile(
-    leading: Icon(
-      isSuitable ? Icons.check_circle : Icons.cancel,
-      color: isSuitable ? Colors.green : Colors.red,
-    ),
-    title: Text(
-      isSkinType
-          ? "For your skin type: ${getSkinTypeName(result['skin_type_id'])}"
-          : "For your concern: ${getConcernName(result['concern_id'])}",
-    ),
-    subtitle: Text(
-      isSuitable ? "This ingredient is suitable" : "This ingredient may cause issues",
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          isSuitable ? Icons.check_circle : Icons.cancel,
+          color: isSuitable ? Colors.green : Colors.red,
+          size: 20,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isSkinType
+                    ? "For your skin type: ${getSkinTypeName(result['skin_type_id'])}"
+                    : "For your concern: ${getConcernName(result['concern_id'])}",
+                style: const TextStyle(
+                  fontSize: 14,
+                ),
+              ),
+              
+            ],
+          ),
+        ),
+      ],
     ),
   );
 }

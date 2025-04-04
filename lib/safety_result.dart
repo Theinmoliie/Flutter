@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'score_util.dart';
@@ -252,34 +254,34 @@ class SafetyResultScreenState extends State<SafetyResultScreen>
       _compatibilityScore = score;
       _recommendationStatus = getRecommendationStatus(score);
       compatibilityResults = filteredResults;
-      
     });
 
-    print('NEW FILTERED: $compatibilityResults')  ;
+    print('NEW FILTERED: $compatibilityResults');
   }
 
   String getRecommendationStatus(double score) {
     if (score >= 65) {
-      return "✅ Recommended";
+      return "Recommended";
     } else if (score >= 40) {
-      return "🟡 Neutral - Use with Caution";
+      return "Neutral - Use with Caution";
     } else {
-      return "❌ Not Recommended";
+      return "Not Recommended";
     }
   }
 
-
   // Check if the ingredient has a safety warning
-bool _hasSafetyWarning(Map<String, dynamic> ingredient) {
-  final allergies = ingredient['Allergies_Immunotoxicity']?.toString().toLowerCase() ?? '';
-  final irritation = ingredient['Irritation']?.toString().toLowerCase() ?? '';
-  final isComedogenic = ingredient['Comodogenic'] == true;
-  
-  return allergies.contains('moderate') || allergies.contains('high') ||
-         irritation.contains('moderate') || irritation.contains('high') ||
-         isComedogenic;
-}
+  bool _hasSafetyWarning(Map<String, dynamic> ingredient) {
+    final allergies =
+        ingredient['Allergies_Immunotoxicity']?.toString().toLowerCase() ?? '';
+    final irritation = ingredient['Irritation']?.toString().toLowerCase() ?? '';
+    final isComedogenic = ingredient['Comodogenic'] == true;
 
+    return allergies.contains('moderate') ||
+        allergies.contains('high') ||
+        irritation.contains('moderate') ||
+        irritation.contains('high') ||
+        isComedogenic;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -311,6 +313,7 @@ bool _hasSafetyWarning(Map<String, dynamic> ingredient) {
             widget.productName,
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
+
           ),
           const SizedBox(height: 10),
           Text(
@@ -382,464 +385,711 @@ bool _hasSafetyWarning(Map<String, dynamic> ingredient) {
   }
 
   Widget _buildIngredientCard(Map<String, dynamic> ingredient) {
-  final score = ingredient['Score'] as int? ?? 0;
-  final isComedogenic = ingredient['Comodogenic'] == true;
+    final score = ingredient['Score'] as int? ?? 0;
+    final isComedogenic = ingredient['Comodogenic'] == true;
 
-  return Container(
-    margin: const EdgeInsets.symmetric(vertical: 8),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(15),
-      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
-    ),
-    child: ExpansionTile(
-      leading: CircleAvatar(
-        backgroundColor: ProductScorer.getScoreColor(score.toDouble()),
-        child: Text(
-          "$score",
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
       ),
-      title: Row(
-        children: [
-          Expanded(
-            child: Text(
-              ingredient['Ingredient_Name'] ?? "Not Specified",
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      child: ExpansionTile(
+        leading: CircleAvatar(
+          backgroundColor: ProductScorer.getScoreColor(score.toDouble()),
+          child: Text(
+            "$score",
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          if (isComedogenic)
-            Container(
-              margin: const EdgeInsets.only(left: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.orange[50],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange),
-              ),
-              child: const Text(
-                'Comedogenic',
-                style: TextStyle(
-                  color: Colors.orange,
-                  fontSize: 12,
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                ingredient['Ingredient_Name'] ?? "Not Specified",
+                style: const TextStyle(
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
+            if (isComedogenic)
+              Container(
+                margin: const EdgeInsets.only(left: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange),
+                ),
+                child: const Text(
+                  'Comedogenic',
+                  style: TextStyle(
+                    color: Colors.orange,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        subtitle: Text(ingredient['Function'] ?? 'Not Specified'),
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "🔬 Other Concerns: ${ingredient['Other_Concerns'] ?? 'Not Specified'}",
+                ),
+                ProductScorer.buildRiskIndicator(
+                  "Cancer Concern",
+                  ingredient['Cancer_Concern'],
+                ),
+                ProductScorer.buildRiskIndicator(
+                  "Allergies",
+                  ingredient['Allergies_Immunotoxicity'],
+                ),
+                ProductScorer.buildRiskIndicator(
+                  "Developmental Toxicity",
+                  ingredient['Developmental_Reproductive_Toxicity'],
+                ),
+                ProductScorer.buildRiskIndicator(
+                  "Irritation",
+                  ingredient['Irritation'],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
-      subtitle: Text(ingredient['Function'] ?? 'Not Specified'),
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "🔬 Other Concerns: ${ingredient['Other_Concerns'] ?? 'Not Specified'}",
-              ),
-              ProductScorer.buildRiskIndicator(
-                "Cancer Concern",
-                ingredient['Cancer_Concern'],
-              ),
-              ProductScorer.buildRiskIndicator(
-                "Allergies",
-                ingredient['Allergies_Immunotoxicity'],
-              ),
-              ProductScorer.buildRiskIndicator(
-                "Developmental Toxicity",
-                ingredient['Developmental_Reproductive_Toxicity'],
-              ),
-              ProductScorer.buildRiskIndicator(
-                "Irritation",
-                ingredient['Irritation'],
-              ),
-             
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
+    );
+  }
 
   Widget _buildCompatibilityTab() {
-    // Sort ingredients based on priority:
-    // 1. Ingredients with compatibility data (top)
-    // 2. Ingredients with safety warnings (middle)
-    // 3. Ingredients with no data (bottom)
-    final sortedIngredients = List<Map<String, dynamic>>.from(ingredients)
-      ..sort((a, b) {
-        // Check if ingredients have compatibility data
-        final aHasCompatibility = compatibilityResults
-            .any((r) => r['ingredient_name'] == a['Ingredient_Name']);
-        final bHasCompatibility = compatibilityResults
-            .any((r) => r['ingredient_name'] == b['Ingredient_Name']);
-        
-        // Check if ingredients have safety warnings
-        final aHasSafetyWarning = _hasSafetyWarning(a);
-        final bHasSafetyWarning = _hasSafetyWarning(b);
-        
-        // Sort by compatibility data first
-        if (aHasCompatibility && !bHasCompatibility) return -1;
-        if (!aHasCompatibility && bHasCompatibility) return 1;
-        
-        // If both have compatibility data or both don't, sort by safety warning
-        if (aHasSafetyWarning && !bHasSafetyWarning) return -1;
-        if (!aHasSafetyWarning && bHasSafetyWarning) return 1;
-        
-        // If both have same status, maintain original order
-        return 0;
-      });
+    final skinProfile = Provider.of<SkinProfileProvider>(context);
 
-      
-  final skinProfile = Provider.of<SkinProfileProvider>(context);
+    // Calculate ingredient categories
+    final beneficialIngredients =
+        ingredients.where((ingredient) {
+          final results = compatibilityResults.where(
+            (r) =>
+                r['ingredient_name'] == ingredient['Ingredient_Name'] &&
+                r['is_suitable'] == true,
+          );
+          return results.isNotEmpty;
+        }).toList();
 
-  return SingleChildScrollView(
-    padding: const EdgeInsets.all(16),
-    child: Column(
+    final potentialHazards =
+        ingredients.where((ingredient) {
+          final results = compatibilityResults.where(
+            (r) =>
+                r['ingredient_name'] == ingredient['Ingredient_Name'] &&
+                r['is_suitable'] == false,
+          );
+          return results.isNotEmpty || _hasSafetyWarning(ingredient);
+        }).toList();
+
+    final noDataIngredients =
+        ingredients.where((ingredient) {
+          return !compatibilityResults.any(
+            (r) => r['ingredient_name'] == ingredient['Ingredient_Name'],
+          );
+        }).toList();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Product header
+          _buildProductHeader(),
+          const SizedBox(height: 20),
+
+          if (skinProfile.userSkinTypeId == null ||
+              skinProfile.userConcernIds.isEmpty)
+            _buildProfileSetupPrompt()
+          else if (isLoadingCompatibility)
+            const CircularProgressIndicator()
+          else
+            Column(
+              children: [
+                // Score and recommendation
+                _buildScoreSection(),
+                const SizedBox(height: 10),
+
+                Column(
+                  children: [
+                    _buildVerticalCard(
+                      title: "Beneficial Ingredients",
+                      count: beneficialIngredients.length,
+                      icon: Icons.check_circle,
+                      iconColor: Colors.green,
+                      ingredients: beneficialIngredients,
+                      isPositive: true,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildVerticalCard(
+                      title: "Potential Hazards",
+                      count: potentialHazards.length,
+                      icon: Icons.warning,
+                      iconColor: Colors.orange,
+                      ingredients: potentialHazards,
+                      isPositive: false,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildVerticalCard(
+                      title: "No Data Available",
+                      count: noDataIngredients.length,
+                      icon: Icons.help_outline,
+                      iconColor: Colors.grey,
+                      ingredients: noDataIngredients,
+                      isPositive: null,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            const Padding(
+            padding: EdgeInsets.only(top: 20),
+            child: Text(
+              " Analysis is based on available data for ingredient suitability. Unanalyzed ingredients are not included. For accurate advice, consult a dermatologist.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.black54),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductHeader() {
+    return Column(
       children: [
         Text(
           widget.productName,
           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Text(
           widget.brand,
-          style: const TextStyle(fontSize: 18, color: Colors.grey),
+          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
         ),
-        const SizedBox(height: 10),
-
+        const SizedBox(height: 16),
         ClipRRect(
-          borderRadius: BorderRadius.circular(15),
-          child: widget.imageUrl.isNotEmpty
-              ? Image.network(
-                  widget.imageUrl,
-                  height: 200,
-                  fit: BoxFit.cover,
-                )
-              : Image.asset(
-                  'assets/placeholder.png',
-                  height: 200,
-                  fit: BoxFit.cover,
-                ),
+          borderRadius: BorderRadius.circular(12),
+          child:
+              widget.imageUrl.isNotEmpty
+                  ? Image.network(
+                    widget.imageUrl,
+                    height: 180,
+                    width: 180,
+                    fit: BoxFit.cover,
+                  )
+                  : Image.asset(
+                    'assets/placeholder.png',
+                    height: 180,
+                    width: 180,
+                    fit: BoxFit.cover,
+                  ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfileSetupPrompt() {
+    return Column(
+      children: [
+        const Text(
+          "Please set your skin profile to view compatibility analysis",
+          style: TextStyle(fontSize: 16, color: Colors.red),
+          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 20),
+        ElevatedButton(
+          onPressed: () {
+            // Navigate to skin profile setup
+            // Navigator.push(context, MaterialPageRoute(builder: (_) => SkinProfileScreen()));
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color.fromARGB(255, 170, 136, 176),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+          child: const Text(
+            "Set Skin Profile",
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
 
-        if (skinProfile.userSkinTypeId == null || skinProfile.userConcernIds.isEmpty)
-          Column(
-            children: [
-              const Text(
-                "Please set your skin profile to view compatibility analysis",
-                style: TextStyle(fontSize: 16, color: Colors.red),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  // Navigate to skin profile setup
-                  // Navigator.push(context, MaterialPageRoute(builder: (_) => SkinProfileScreen()));
-                },
-                child: const Text("Set Skin Profile"),
-              ),
-            ],
-          )
-        else if (isLoadingCompatibility)
-          const CircularProgressIndicator()
-        else
-          Column(
-            children: [
-              if (_compatibilityScore != null)
-                Container(
-                  margin: const EdgeInsets.symmetric(vertical: 12),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: _compatibilityScore! >= 65
-                        ? Colors.green
-                        : _compatibilityScore! >= 40
-                            ? Colors.orange
-                            : Colors.red,
-                    borderRadius: BorderRadius.circular(12),
+ Widget _buildScoreSection() {
+  final skinProfile = Provider.of<SkinProfileProvider>(
+    context,
+    listen: false,
+  );
+  final scoreColor = _compatibilityScore! >= 65
+      ? Colors.green
+      : _compatibilityScore! >= 40
+          ? Colors.orange
+          : Colors.red;
+
+  return Column(
+    children: [
+      Text(
+        "Analysis for ${getSkinTypeName(skinProfile.userSkinTypeId!)} skin with ${skinProfile.userConcernIds.map((id) => getConcernName(id)).join(", ")}",
+        style: TextStyle(
+          fontSize: 14,
+          color: Colors.grey[600],
+        ),
+        textAlign: TextAlign.center,
+      ),
+      const SizedBox(height: 12),
+
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: scoreColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: scoreColor.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "COMPATIBILITY",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
                   ),
-                  child: Text(
-                    "Compatibility Score: ${_compatibilityScore!.toStringAsFixed(1)}%",
-                    style: const TextStyle(
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _recommendationStatus,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: scoreColor,
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: scoreColor.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "${_compatibilityScore!.toStringAsFixed(1)}%",
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: scoreColor,
                     ),
                   ),
-                ),
-              Text(
-                _recommendationStatus,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    _compatibilityScore! >= 65
+                        ? Icons.check_circle
+                        : _compatibilityScore! >= 40
+                            ? Icons.warning
+                            : Icons.error_outline,
+                    size: 18,
+                    color: scoreColor,
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
-              Text(
-                "Analysis for:",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[700],
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                "Skin Type: ${getSkinTypeName(skinProfile.userSkinTypeId!)}",
-                style: const TextStyle(fontSize: 16),
-              ),
-              Text(
-                "Skin Concerns: ${skinProfile.userConcernIds.map((id) => getConcernName(id)).join(", ")}",
-                style: const TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 20),
+            ),
+          ],
+        ),
+      ),      
+      const SizedBox(height: 12),
 
-              // Show all ingredients with their compatibility data
-                ...sortedIngredients.map((ingredient) {               
-                final results = compatibilityResults
-                    .where((r) => r['ingredient_name'] == ingredient['Ingredient_Name'])
-                    .toList();
-
-                
-                return _buildCompatibilityCard(
-                  ingredient['Ingredient_Name'] ?? 'Unknown',
-                  results,
-                  ingredient,
-                );
-              }).toList(),
-            ],
-          ),
-      ],
-    ),
+    ],
   );
 }
- 
-Widget _buildCompatibilityCard(
-  String ingredientName, 
-  List<Map<String, dynamic>> results,
-  Map<String, dynamic> ingredient,
-) {
-  final hasCompatibilityData = results.isNotEmpty;
-  final isSuitableOverall = !results.any((r) => r['is_suitable'] == false);
-  final hasSafetyWarning = _hasSafetyWarning(ingredient);
-  final benefits = ingredient['Benefits']?.toString() ?? 'No benefits data available';
 
-  return Container(
-    margin: const EdgeInsets.symmetric(vertical: 8),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(15),
-      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
-    ),
-    child: ExpansionTile(
-      leading: CircleAvatar(
-        backgroundColor: hasCompatibilityData
-            ? (isSuitableOverall ? Colors.green[300]! : Colors.red[300]!)
-            : (hasSafetyWarning ? Colors.orange[300]! : Colors.grey[300]!),
-        child: Icon(
-          hasCompatibilityData
-              ? (isSuitableOverall ? Icons.check : Icons.warning)
-              : (hasSafetyWarning ? Icons.warning_amber : Icons.help_outline),
-          color: Colors.white,
-        ),
-      ),
-      title: Text(
-        ingredientName,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      ),
-      subtitle: Text(
-        hasCompatibilityData
-            ? (isSuitableOverall ? "Suitable for your profile" : "May not be suitable for you")
-            : (hasSafetyWarning ? "Safety warning - check details" : "No compatibility data available"),
-        style: TextStyle(
-          color: hasCompatibilityData
-              ? (isSuitableOverall ? Colors.green[700] : Colors.red[700])
-              : (hasSafetyWarning ? Colors.orange[700] : Colors.grey[700]),
-        ),
-      ),
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+
+  Widget _buildVerticalCard({
+    required String title,
+    required int count,
+    required IconData icon,
+    required Color iconColor,
+    required List<Map<String, dynamic>> ingredients,
+    required bool? isPositive,
+  }) {
+    return Card(
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          _showIngredientsDetails(
+            title: title,
+            ingredients: ingredients,
+            isPositive: isPositive,
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
             children: [
-              // Benefits section
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 24, color: iconColor),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
-                    // Compatibility results
-                    if (results.isNotEmpty) ...[
-                      const Text(
-                        'Checking Suitability:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ...results.map(_buildCompatibilityResult),
-                    ],
-
-              const Divider(),
-
                     Text(
-                      '🌟 Benefits',
-                      style: TextStyle(
+                      title,
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      benefits,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.black87,
-                      ),
+                      "$count ingredients found",
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                   ],
                 ),
               ),
-              
-              
-              
-              // Safety warnings
-              if (hasSafetyWarning) ...[
-              const Divider(),
-                const Text(
-                  'Safety Warnings:',
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  "$count",
                   style: TextStyle(
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    fontSize: 15,
+                    color: iconColor,
                   ),
                 ),
-                const SizedBox(height: 8),
-                _buildSafetyWarning('Allergies/Immunotoxicity', ingredient['Allergies_Immunotoxicity']),
-                _buildSafetyWarning('Irritation', ingredient['Irritation']),
-                _buildSafetyWarning('Comedogenic', ingredient['Comodogenic']),
-              ],
+              ),
             ],
           ),
         ),
-      ],
-    ),
-  );
-}
+      ),
+    );
+  }
 
-Widget _buildCompatibilityResult(Map<String, dynamic> result) {
-  final isSuitable = result['is_suitable'] == true;
-  final isSkinType = result['type'] == 'skin_type';
-
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(
-          isSuitable ? Icons.check_circle : Icons.cancel,
-          color: isSuitable ? Colors.green : Colors.red,
-          size: 20,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
+  void _showIngredientsDetails({
+    required String title,
+    required List<Map<String, dynamic>> ingredients,
+    required bool? isPositive,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          height: MediaQuery.of(context).size.height * 0.7,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                isSkinType
-                    ? "For your skin type: ${getSkinTypeName(result['skin_type_id'])}"
-                    : "For your concern: ${getConcernName(result['concern_id'])}",
+                title,
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView(
+                  children:
+                      ingredients.isEmpty
+                          ? [
+                            const Text("No ingredients found in this category"),
+                          ]
+                          : ingredients
+                              .map(
+                                (ingredient) => _buildIngredientListItem(
+                                  ingredient: ingredient,
+                                  isPositive: isPositive,
+                                ),
+                              )
+                              .toList(),
+                ),
+              ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+ Widget _buildIngredientListItem({
+  required Map<String, dynamic> ingredient,
+  required bool? isPositive,
+}) {
+  final benefits = ingredient['Benefits']?.toString() ?? 'No benefits data available';
+  final warnings = _getWarnings(ingredient);
+  final skinProfile = Provider.of<SkinProfileProvider>(context, listen: false);
+  
+  // Get compatibility results for this specific ingredient
+  final ingredientResults = compatibilityResults.where(
+    (r) => r['ingredient_name'] == ingredient['Ingredient_Name']
+  ).toList();
+
+  return Container(
+    padding: const EdgeInsets.all(12),
+    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: Colors.grey[50],
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.1),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+          spreadRadius: 1,
         ),
       ],
     ),
-  );
-}
-
-Widget _buildSafetyWarning(String label, dynamic value) {
-  // Handle null values (except for Comedogenic which is handled separately)
-  if (value == null && label != 'Comedogenic') {
-    return const SizedBox.shrink();
-  }
-
-  // Determine warning level and content
-  String? warningText;
-  Color? warningColor;
-  IconData warningIcon = Icons.warning_amber;
-  
-  if (label == 'Comedogenic') {
-    if (value != true) return const SizedBox.shrink();
-    warningText = 'Comedogenic: May clog pores';
-    warningColor = Colors.purple;
-    warningIcon = Icons.face;
-    
-      } else {
-    final String valueStr = value.toString().toLowerCase();
-    if (!valueStr.contains('moderate') && !valueStr.contains('high')) {
-      return const SizedBox.shrink();
-    }
-    warningText = '$label: ${value.toString().toUpperCase()}';
-    warningColor = valueStr.contains('high') ? Colors.red : Colors.orange;
-  }
-
-  // Get the appropriate background color shade
-  final backgroundColor = warningColor == Colors.red 
-      ? Colors.red.shade50 
-       : warningColor == Colors.purple  // Add this check
-      ? Colors.purple.shade50
-      : Colors.orange.shade50;
-
-
-  // Consistent styling for all warnings
-  return Container(
-    width: double.infinity,
-    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-    margin: const EdgeInsets.only(bottom: 8),
-    decoration: BoxDecoration(
-      color: backgroundColor,
-      borderRadius: BorderRadius.circular(6),
-      border: Border.all(
-        color: warningColor.withOpacity(0.3),
-        width: 1,
-      ),
-    ),
-    child: Row(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          warningIcon,
-          color: warningColor,
-          size: 20,
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            warningText,
-            style: TextStyle(
-              fontSize: 15,
-              color: warningColor,
-              fontWeight: FontWeight.w600,
-            ),
+        // Ingredient name
+        Text(
+          ingredient['Ingredient_Name'] ?? 'Unknown',
+          style: const TextStyle(
+            fontSize: 16, 
+            fontWeight: FontWeight.bold,
           ),
         ),
+        const SizedBox(height: 8),
+        
+        // Show suitability details if ingredient is positive
+        if (isPositive == true) ...[
+          ...ingredientResults.map((result) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green[50]?.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.check_circle,
+                        color: Colors.green[700],
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              result['type'] == 'skin_type'
+                                  ? "Good for ${getSkinTypeName(skinProfile.userSkinTypeId!)} skin"
+                                  : "Helps with ${getConcernName(result['concern_id'])}",
+                              style: const TextStyle(
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          )),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50]?.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  benefits,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+        
+        // Show incompatibility reasons if ingredient is negative
+        if (isPositive == false) ...[
+          ...ingredientResults.where((r) => r['is_suitable'] == false).map((result) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red[50]?.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.dangerous,
+                        color: Colors.red[700],
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              result['type'] == 'skin_type'
+                                  ? "Not ideal for ${getSkinTypeName(skinProfile.userSkinTypeId!)} skin"
+                                  : "May worsen ${getConcernName(result['concern_id'])}",
+                              style: const TextStyle(
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          )),
+          // Show additional safety warnings if they exist
+          if (warnings.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ...warnings.map((warning) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[50]?.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.warning,
+                          color: Colors.orange[700],
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            warning,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            )),
+          ],
+        ],
+        
+        // Show message for no data
+        if (isPositive == null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200]?.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  "We're still gathering insights for this ingredient",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     ),
   );
 }
+  List<String> _getWarnings(Map<String, dynamic> ingredient) {
+    final warnings = <String>[];
+
+    if (ingredient['Comodogenic'] == true) {
+      warnings.add('Comedogenic: May clog pores');
+    }
+
+    final allergies =
+        ingredient['Allergies_Immunotoxicity']?.toString().toLowerCase() ?? '';
+    if (allergies.contains('moderate') || allergies.contains('high')) {
+      warnings.add('Allergy risk: ${ingredient['Allergies_Immunotoxicity']}');
+    }
+
+    final irritation = ingredient['Irritation']?.toString().toLowerCase() ?? '';
+    if (irritation.contains('moderate') || irritation.contains('high')) {
+      warnings.add('Irritation risk: ${ingredient['Irritation']}');
+    }
+
+    return warnings;
+  }
 }

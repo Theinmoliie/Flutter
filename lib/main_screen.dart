@@ -4,10 +4,10 @@ import 'skin_profile.dart';
 
 class MainScreen extends StatefulWidget {
   @override
-  _MainScreenState createState() => _MainScreenState();
+  MainScreenState createState() => MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
   void _onProfileSaved(Map<String, dynamic> profile) {
@@ -15,7 +15,9 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   List<Widget> get _screens => [
-        HomeScreen(),
+        HomeScreen(
+          onSwitchToProfile: () => _onItemTapped(1), // Pass callback to switch tabs
+        ),
         SkinProfileScreen(onProfileSaved: _onProfileSaved),
       ];
 

@@ -540,8 +540,7 @@ class _StagingScreenState extends State<StagingScreen> {
                 Padding(
                   padding: EdgeInsets.only(top: 20),
                   child: Text(
-                    "All safety ratings displayed are referred from EWG's Skin Deep database.\n"
-                    "The overall product's hazard score is an average of the ingredients’ hazard scores.",
+                    "Safety ratings from EWG's Skin Deep database",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, color: Colors.black54),
                   ),

@@ -8,6 +8,10 @@ import 'staging.dart';
 import 'safety_result.dart';
 
 class HomeScreen extends StatefulWidget {
+  final VoidCallback onSwitchToProfile; // Callback to switch to profile tab
+
+  const HomeScreen({required this.onSwitchToProfile});
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -254,13 +258,13 @@ class _HomeScreenState extends State<HomeScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder:
-                                      (context) => SafetyResultScreen(
-                                        productId: product['Product_Id'],
-                                        productName: product['Product_Name'],
-                                        brand: product['Brand'],
-                                        imageUrl: product['Image_Url'] ?? '',
-                                      ),
+                                  builder: (context) => SafetyResultScreen(
+                                    productId: product['Product_Id'],
+                                    productName: product['Product_Name'],
+                                    brand: product['Brand'],
+                                    imageUrl: product['Image_Url'] ?? '',
+                                    onProfileRequested: widget.onSwitchToProfile,
+                                  ),
                                 ),
                               );
                             },

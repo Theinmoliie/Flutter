@@ -12,12 +12,15 @@ class SafetyResultScreen extends StatefulWidget {
   final String productName;
   final String brand;
   final String imageUrl;
+  final VoidCallback onProfileRequested; // Add this
+
 
   const SafetyResultScreen({
     required this.productId,
     required this.productName,
     required this.brand,
     required this.imageUrl,
+    required this.onProfileRequested, // Add this
     Key? key,
   }) : super(key: key);
 
@@ -604,6 +607,8 @@ class SafetyResultScreenState extends State<SafetyResultScreen>
   }
 
   Widget _buildProfileSetupPrompt() {
+      print("Callback received: ${widget.onProfileRequested != null}"); // Debug
+
     return Column(
       children: [
         const Text(
@@ -613,10 +618,11 @@ class SafetyResultScreenState extends State<SafetyResultScreen>
         ),
         const SizedBox(height: 20),
         ElevatedButton(
-          onPressed: () {
-            // Navigate to skin profile setup
-            // Navigator.push(context, MaterialPageRoute(builder: (_) => SkinProfileScreen()));
-          },
+            onPressed: () {
+            debugPrint("Attempting to switch tabs"); // Debug
+            widget.onProfileRequested?.call(); // Call the callback
+            Navigator.of(context).pop(); // Close the SafetyResultScreen
+          }, // Use the callback directly
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color.fromARGB(255, 170, 136, 176),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -629,6 +635,7 @@ class SafetyResultScreenState extends State<SafetyResultScreen>
       ],
     );
   }
+
 
  Widget _buildScoreSection() {
   final skinProfile = Provider.of<SkinProfileProvider>(

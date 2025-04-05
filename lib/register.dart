@@ -27,6 +27,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Account created successfully! Check your email for verification.")),
       );
+
+       Navigator.pushReplacementNamed(context, '/main');
+       
     } on AuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Sign Up Failed: ${e.message}")),
@@ -51,10 +54,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         SnackBar(content: Text("Google Sign In Successful!")),
       );
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => HomeScreen()),
-      );
+      Navigator.pushReplacementNamed(context, '/main');
+
     } on AuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Google Sign In Failed: ${e.message}")),

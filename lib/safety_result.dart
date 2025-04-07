@@ -212,7 +212,10 @@ class SafetyResultScreenState extends State<SafetyResultScreen> {
       isLoadingCompatibility: isLoadingCompatibility,
       compatibilityScore: _compatibilityScore,
       recommendationStatus: _recommendationStatus,
-      onProfileRequested: widget.onProfileRequested,
+      onProfileRequested: () {
+        // This will trigger the callback chain back to MainScreen
+        widget.onProfileRequested();
+      },      
       skinTypeMap: skinTypeMap,
       concernMap: concernMap,
     );

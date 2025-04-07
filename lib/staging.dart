@@ -7,12 +7,14 @@ import 'package:provider/provider.dart';
 import './providers/skin_profile_provider.dart';
 import 'score_util.dart';
 import 'compatibility_util.dart';
-import 'main_screen.dart';
 import 'compatibility_tab.dart';
 
 class StagingScreen extends StatefulWidget {
   final File imageFile;
-  const StagingScreen({required this.imageFile, Key? key}) : super(key: key);
+  final VoidCallback onProfileRequested;
+
+  const StagingScreen({required this.onProfileRequested, required this.imageFile, Key? key}) : super(key: key);
+
 
   @override
   _StagingScreenState createState() => _StagingScreenState();
@@ -283,15 +285,10 @@ class _StagingScreenState extends State<StagingScreen> {
       isLoadingCompatibility: isLoadingCompatibility,
       compatibilityScore: _compatibilityScore,
       recommendationStatus: _recommendationStatus,
-      onProfileRequested: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MainScreen(),
-            settings: const RouteSettings(arguments: 1),
-          ),
-        );
-      },
+      onProfileRequested:(){
+        // This will trigger the callback chain back to MainScreen
+        widget.onProfileRequested();
+        } ,
       skinTypeMap: skinTypeMap,
       concernMap: concernMap,
     );

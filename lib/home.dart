@@ -82,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
     File? croppedImage = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => StagingScreen(imageFile: selectedImage),
+        builder: (context) => StagingScreen(imageFile: selectedImage,  onProfileRequested: widget.onSwitchToProfile,),
       ),
     );
 

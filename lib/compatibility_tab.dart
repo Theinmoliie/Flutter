@@ -510,8 +510,18 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
         ),
         const SizedBox(height: 20),
         ElevatedButton(
-          onPressed: onProfileRequested,
-          style: ElevatedButton.styleFrom(
+           onPressed: () {
+          if (onProfileRequested != null) {
+            onProfileRequested!();
+            // Add this to ensure the profile screen is shown immediately
+            Navigator.of(context, rootNavigator: true).pop();
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Navigation not available')),
+            );
+          }
+        },        
+            style: ElevatedButton.styleFrom(
             backgroundColor: const Color.fromARGB(255, 170, 136, 176),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),

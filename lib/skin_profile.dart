@@ -8,7 +8,10 @@ final supabase = Supabase.instance.client;
 class SkinProfileScreen extends StatefulWidget {
   final Function(Map<String, dynamic>)? onProfileSaved;
 
-  const SkinProfileScreen({Key? key, this.onProfileSaved}) : super(key: key);
+  const SkinProfileScreen({
+    Key? key, 
+    required this.onProfileSaved,
+  }) : super(key: key);
 
   @override
   _SkinProfileScreenState createState() => _SkinProfileScreenState();
@@ -27,6 +30,17 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
     super.initState();
     _fetchSkinTypes();
     _fetchSkinConcerns();
+    _loadSavedProfile();
+  }
+
+  Future<void> _loadSavedProfile() async {
+    final profileProvider = Provider.of<SkinProfileProvider>(context, listen: false);
+    if (profileProvider.userSkinTypeId != null) {
+      setState(() {
+        _selectedSkinTypeId = profileProvider.userSkinTypeId;
+        _selectedConcernIds.addAll(profileProvider.userConcernIds);
+      });
+    }
   }
 
   Future<void> _fetchSkinTypes() async {
@@ -41,7 +55,7 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
         _isLoadingSkinTypes = false;
       });
     } catch (e) {
-      _isLoadingSkinTypes = false;
+      setState(() => _isLoadingSkinTypes = false);
     }
   }
 
@@ -57,38 +71,59 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
         _isLoadingConcerns = false;
       });
     } catch (e) {
-      _isLoadingConcerns = false;
+      setState(() => _isLoadingConcerns = false);
     }
   }
 
+  void _clearSelections() {
+      setState(() {
+        _selectedSkinTypeId = null;
+        _selectedConcernIds.clear();
+      });
+    }
+
   void _saveProfile() {
-    if (_selectedSkinTypeId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select your skin type')),
+    if (_selectedSkinTypeId == null || _selectedConcernIds.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Selection Required'),
+          content: const Text('Please select at least one option.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
       );
       return;
     }
 
-    String selectedSkinType = _skinTypes.firstWhere(
-        (type) => type['skin_type_id'] == _selectedSkinTypeId)['skin_type'];
+    final selectedSkinType = _skinTypes.firstWhere(
+      (type) => type['skin_type_id'] == _selectedSkinTypeId,
+    )['skin_type'];
 
-    List<String> selectedConcerns = _skinConcerns
+    final selectedConcerns = _skinConcerns
         .where((concern) => _selectedConcernIds.contains(concern['concern_id']))
         .map((concern) => concern['concern'] as String)
         .toList();
 
-    // Pass skin_type_id and concern_ids to provider
-    Provider.of<SkinProfileProvider>(context, listen: false)
-        .updateSkinProfile(selectedSkinType, _selectedSkinTypeId!, selectedConcerns, _selectedConcernIds.toList());
+    // Update provider with both names and IDs
+    Provider.of<SkinProfileProvider>(context, listen: false).updateSkinProfile(
+      selectedSkinType,
+      _selectedSkinTypeId!,
+      selectedConcerns,
+      _selectedConcernIds.toList(),
+    );
 
-    if (widget.onProfileSaved != null) {
-      widget.onProfileSaved!({
-        'skinType': selectedSkinType,
-        'skinTypeId': _selectedSkinTypeId,
-        'concerns': selectedConcerns,
-        'concernIds': _selectedConcernIds.toList(),
-      });
-    }
+    // Notify parent about saved profile
+    widget.onProfileSaved?.call({
+      'skinType': selectedSkinType,
+      'skinTypeId': _selectedSkinTypeId,
+      'concerns': selectedConcerns,
+      'concernIds': _selectedConcernIds.toList(),
+    });
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Profile successfully saved!')),
@@ -98,13 +133,22 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Skin Profile')),
+      appBar: AppBar(
+        title: const Text('Skin Profile'),
+        automaticallyImplyLeading: false, // Remove back button
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const Text(
+              'Select Your Skin Type',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
             _isLoadingSkinTypes
-                ? const CircularProgressIndicator()
+                ? const Center(child: CircularProgressIndicator())
                 : Column(
                     children: _skinTypes.map((type) {
                       return RadioListTile<int>(
@@ -119,8 +163,14 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
                       );
                     }).toList(),
                   ),
+            const SizedBox(height: 24),
+            const Text(
+              'Select Your Skin Concerns',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
             _isLoadingConcerns
-                ? const CircularProgressIndicator()
+                ? const Center(child: CircularProgressIndicator())
                 : Column(
                     children: _skinConcerns.map((concern) {
                       return CheckboxListTile(
@@ -138,9 +188,36 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
                       );
                     }).toList(),
                   ),
-            ElevatedButton(
-              onPressed: _saveProfile,
-              child: const Text('Save Profile'),
+            const SizedBox(height: 32),
+               Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: _clearSelections,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                    backgroundColor: Colors.grey,
+                  ),
+                  
+                  child: const Text(
+                    'Clear',
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                
+                ElevatedButton(
+                onPressed: _saveProfile,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                  backgroundColor: const Color.fromARGB(255, 170, 136, 176),
+                ),
+                child: const Text(
+                  'Save Profile',
+                  style: TextStyle(fontSize: 18, color: Colors.white),
+                ),
+              ),
+              ],
             ),
           ],
         ),

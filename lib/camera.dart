@@ -1,19 +1,21 @@
 import 'dart:io';
-
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'skin_results_screen.dart';
-import 'quality_checker.dart'; // Add this import
+import 'quality_checker.dart';
 
-class CameraPage  extends StatefulWidget {
+class CameraPage extends StatefulWidget {
   @override
-  _CameraPage createState() => _CameraPage ();
+  _CameraPage createState() => _CameraPage();
 }
 
-class _CameraPage extends State<CameraPage > {
+class _CameraPage extends State<CameraPage> {
   late CameraController _controller;
   bool _isCameraReady = false;
   bool _isCapturing = false;
+
+  final double guideBoxWidth = 250;
+  final double guideBoxHeight = 350;
 
   @override
   void initState() {
@@ -29,7 +31,7 @@ class _CameraPage extends State<CameraPage > {
 
     _controller = CameraController(
       frontCamera,
-      ResolutionPreset.high, // High resolution for skin details
+      ResolutionPreset.high,
       enableAudio: false,
     );
 
@@ -40,7 +42,7 @@ class _CameraPage extends State<CameraPage > {
   Future<String?> _captureImage() async {
     if (!_isCameraReady || _isCapturing) return null;
     setState(() => _isCapturing = true);
-    
+
     try {
       final image = await _controller.takePicture();
       return image.path;
@@ -71,13 +73,13 @@ class _CameraPage extends State<CameraPage > {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Mirrored camera preview
           Transform(
             alignment: Alignment.center,
             transform: Matrix4.identity()..scale(-1.0, 1.0, 1.0),
             child: CameraPreview(_controller),
           ),
           _buildCaptureGuidelines(),
+          _buildGuidedBox(),
           _buildCaptureButton(),
         ],
       ),
@@ -85,38 +87,53 @@ class _CameraPage extends State<CameraPage > {
   }
 
   Widget _buildCaptureGuidelines() {
-    return Center(
-      child: Container(
-        width: 250,
-        height: 350,
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: Colors.white.withOpacity(0.8),
-            width: 2.0,
-          ),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.face, size: 50, color: Colors.white),
-            SizedBox(height: 20),
-            Text(
-              'Align your face within the frame',
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Ensure good lighting',
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
-          ],
-        ),
+  return Positioned(
+    top: 50,
+    left: 20,
+    right: 20,
+    child: Container(
+      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(8),
       ),
-    );
-  }
+      child: Column(
+        children: [
+          Text(
+            'Align your face within the frame',
+            style: TextStyle(color: Colors.white, fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 6),
+          Text(
+            'Ensure good lighting',
+            style: TextStyle(color: Colors.white, fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
-    Widget _buildCaptureButton() {
+Widget _buildGuidedBox() {
+  return Center(
+    child: Container(
+      width: guideBoxWidth,
+      height: guideBoxHeight,
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: Colors.white.withOpacity(0.8),
+          width: 2.0,
+        ),
+        borderRadius: BorderRadius.circular(10),
+      ),
+    ),
+  );
+}
+
+
+  Widget _buildCaptureButton() {
     return Positioned(
       bottom: 40,
       left: 0,
@@ -127,10 +144,13 @@ class _CameraPage extends State<CameraPage > {
           onPressed: () async {
             final imagePath = await _captureImage();
             if (imagePath != null && mounted) {
-              // Check image quality before proceeding
-              final qualityIssue = await ImageQualityChecker.getQualityIssue(File(imagePath));
+              final qualityIssue = await ImageQualityChecker.getQualityIssue(
+                File(imagePath),
+                guideBoxSize: Size(guideBoxWidth, guideBoxHeight),
+                screenSize: MediaQuery.of(context).size,
+              );
+
               if (qualityIssue != null) {
-                // Show error message if quality check fails
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(qualityIssue),
@@ -139,8 +159,7 @@ class _CameraPage extends State<CameraPage > {
                 );
                 return;
               }
-              
-              // Only navigate if quality check passes
+
               Navigator.push(
                 context,
                 MaterialPageRoute(

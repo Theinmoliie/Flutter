@@ -1,9 +1,9 @@
 // 📁 lib/pages/result_page.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
-
 import 'quality_checker.dart';
 import 'analysis_page.dart'; // Add this import
+
 
 class ResultPage extends StatelessWidget {
   final String imagePath;
@@ -24,9 +24,7 @@ class ResultPage extends StatelessWidget {
             child: Center(
               child: Transform(
                 alignment: Alignment.center,
-                transform:
-                    Matrix4.identity()
-                      ..scale(isFrontCamera ? -1.0 : 1.0, 1.0, 1.0),
+                transform: Matrix4.identity()..scale(isFrontCamera ? -1.0 : 1.0, 1.0, 1.0),
                 child: Image.file(File(imagePath)),
               ),
             ),
@@ -34,27 +32,15 @@ class ResultPage extends StatelessWidget {
           Padding(
             padding: EdgeInsets.all(16),
             child: ElevatedButton(
-              onPressed: () async {
-                // Double-check quality before analysis (optional)
-                final qualityIssue = await ImageQualityChecker.getQualityIssue(
-                  File(imagePath),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AnalysisPage(imagePath: imagePath,
+                    isFrontCamera: true, // Set based on which camera was used),
+                  ),
+                ),
                 );
-                if (qualityIssue != null) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(qualityIssue)));
-                } else {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) => AnalysisPage(
-                            imagePath: imagePath,
-                            isFrontCamera: isFrontCamera,
-                          ),
-                    ),
-                  );
-                }
               },
               child: Text('Analyze Skin'),
             ),

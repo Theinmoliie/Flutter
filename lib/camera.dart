@@ -31,13 +31,22 @@ class _CameraPage extends State<CameraPage> {
 
     _controller = CameraController(
       frontCamera,
-      ResolutionPreset.high,
-      enableAudio: false,
+    ResolutionPreset.high, // 720p (1280x720)
+    // For better skin analysis:
+    imageFormatGroup: Platform.isAndroid 
+        ? ImageFormatGroup.yuv420 
+        : ImageFormatGroup.bgra8888,
+    enableAudio: false,
     );
 
     await _controller.initialize();
     if (mounted) setState(() => _isCameraReady = true);
+
+     // Lock settings for consistency
+    await _controller.setFocusMode(FocusMode.locked);
+    await _controller.setExposureMode(ExposureMode.locked);
   }
+
 
   Future<String?> _captureImage() async {
     if (!_isCameraReady || _isCapturing) return null;
@@ -86,29 +95,68 @@ class _CameraPage extends State<CameraPage> {
     );
   }
 
-  Widget _buildCaptureGuidelines() {
+ Widget _buildGuidedBox() {
+  return Center(
+    child: Container(
+      width: guideBoxWidth,
+      height: guideBoxHeight,
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: Colors.white.withOpacity(0.9),
+          width: 2.0,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+    ),
+  );
+}
+
+
+
+Widget _buildCaptureGuidelines() {
   return Positioned(
     top: 50,
     left: 20,
     right: 20,
-    child: Container(
-      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+    child: AnimatedContainer(
+      duration: Duration(milliseconds: 300),
+      padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.black.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.3),
+          width: 1,
+        ),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            'Align your face within the frame',
-            style: TextStyle(color: Colors.white, fontSize: 16),
-            textAlign: TextAlign.center,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.face_retouching_natural, 
+                  color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Skin Analysis Guide',
+                style: TextStyle(
+                  color: Colors.white, 
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600),
+              ),
+            ],
           ),
-          SizedBox(height: 6),
-          Text(
-            'Ensure good lighting',
-            style: TextStyle(color: Colors.white, fontSize: 16),
-            textAlign: TextAlign.center,
+          SizedBox(height: 12),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: [
+              _buildGuideItem(Icons.light_mode, 'Good lighting'),
+              _buildGuideItem(Icons.face, 'No makeup'),
+              _buildGuideItem(Icons.close_fullscreen, 'Fill the frame'),
+            ],
           ),
         ],
       ),
@@ -116,22 +164,22 @@ class _CameraPage extends State<CameraPage> {
   );
 }
 
-Widget _buildGuidedBox() {
-  return Center(
-    child: Container(
-      width: guideBoxWidth,
-      height: guideBoxHeight,
-      decoration: BoxDecoration(
-        border: Border.all(
+Widget _buildGuideItem(IconData icon, String text) {
+  return Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, color: Colors.white.withOpacity(0.8), size: 16),
+      SizedBox(width: 4),
+      Text(
+        text,
+        style: TextStyle(
           color: Colors.white.withOpacity(0.8),
-          width: 2.0,
+          fontSize: 14,
         ),
-        borderRadius: BorderRadius.circular(10),
       ),
-    ),
+    ],
   );
 }
-
 
   Widget _buildCaptureButton() {
     return Positioned(

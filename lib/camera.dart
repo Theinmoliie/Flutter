@@ -145,7 +145,7 @@ class _CameraPage extends State<CameraPage> {
         // Optional: Add back button if needed, using theme icon color
         leading: Navigator.canPop(context)
             ? IconButton(
-                icon: Icon(Icons.arrow_back),
+                icon: const Icon(Icons.arrow_back, color: Colors.white), // Set icon color
                 onPressed: () => Navigator.of(context).pop(),
               )
             : null,

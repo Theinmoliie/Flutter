@@ -132,10 +132,16 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Use theme colors
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Skin Profile'),
+        title: const Text('Skin Profile',
+         style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),),
+        backgroundColor: colorScheme.primary,        // Added a title
         automaticallyImplyLeading: false, // Remove back button
+        
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),

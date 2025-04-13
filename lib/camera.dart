@@ -69,24 +69,98 @@ class _CameraPage extends State<CameraPage> {
     super.dispose();
   }
 
-  @override
+    @override
   Widget build(BuildContext context) {
+   
+    // Use theme colors
+    final colorScheme = Theme.of(context).colorScheme;
+
+
     if (!_isCameraReady) {
       return Scaffold(
         backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator(color: Colors.white)),
+        body: Stack(
+          children: [
+            // Full-screen black background
+            Container(color: Colors.black),
+
+            // Centered content
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Spinner with custom styling
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.white.withOpacity(0.2),
+                          blurRadius: 10,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 3,
+                      color: Colors.white,
+                      backgroundColor: Colors.transparent,
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Loading text
+                  Text(
+                    "Initializing Camera...",
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       );
     }
 
+    // Calculate scale if needed, but keep existing logic
+    // final mediaSize = MediaQuery.of(context).size;
+    // final scale = 1 / (_controller.value.aspectRatio * mediaSize.aspectRatio);
+
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      // *** ADDED AppBar HERE ***
+      appBar: AppBar(
+        // No backgroundColor specified, so it uses the theme's default color
+        title: const Text(
+          'Skin Analysis Camera',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ), 
+        backgroundColor: colorScheme.primary,        // Added a title
+        // Optional: Add back button if needed, using theme icon color
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: Icon(Icons.arrow_back),
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : null,
+      ),
+      // *** ---------------- ***
+      // Body remains unchanged, starting below the AppBar
       body: Stack(
         children: [
+          // Existing Transform and CameraPreview
           Transform(
             alignment: Alignment.center,
             transform: Matrix4.identity()..scale(-1.0, 1.0, 1.0),
             child: CameraPreview(_controller),
           ),
+          // Existing overlay widgets remain unchanged
           _buildCaptureGuidelines(),
           _buildGuidedBox(),
           _buildCaptureButton(),
@@ -115,7 +189,7 @@ class _CameraPage extends State<CameraPage> {
 
 Widget _buildCaptureGuidelines() {
   return Positioned(
-    top: 50,
+    top: 10,
     left: 20,
     right: 20,
     child: AnimatedContainer(
@@ -181,47 +255,58 @@ Widget _buildGuideItem(IconData icon, String text) {
   );
 }
 
-  Widget _buildCaptureButton() {
-    return Positioned(
-      bottom: 40,
-      left: 0,
-      right: 0,
-      child: Center(
-        child: FloatingActionButton(
-          backgroundColor: Colors.white,
-          onPressed: () async {
-            final imagePath = await _captureImage();
-            if (imagePath != null && mounted) {
-              final qualityIssue = await ImageQualityChecker.getQualityIssue(
-                File(imagePath),
-                guideBoxSize: Size(guideBoxWidth, guideBoxHeight),
-                screenSize: MediaQuery.of(context).size,
-              );
+ Widget _buildCaptureButton() {
+  return Positioned(
+    bottom: 40, // Keep the same bottom position
+    left: 0,
+    right: 0,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // White background container (now taller)
+        Container(
+          height: 80, // Adjust this value to make the white area taller
+          width: double.infinity, // Full screen width
+          color: Colors.white, // Semi-transparent white
+          child: Center(
+            child: FloatingActionButton(
+              backgroundColor: Colors.white,
+              onPressed: () async {
+                final imagePath = await _captureImage();
+                if (imagePath != null && mounted) {
+                  final qualityIssue = await ImageQualityChecker.getQualityIssue(
+                    File(imagePath),
+                    guideBoxSize: Size(guideBoxWidth, guideBoxHeight),
+                    screenSize: MediaQuery.of(context).size,
+                  );
 
-              if (qualityIssue != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(qualityIssue),
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-                return;
-              }
+                  if (qualityIssue != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(qualityIssue),
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                    return;
+                  }
 
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ResultPage(
-                    imagePath: imagePath,
-                    isFrontCamera: true,
-                  ),
-                ),
-              );
-            }
-          },
-          child: Icon(Icons.camera_alt, color: Colors.black, size: 30),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ResultPage(
+                        imagePath: imagePath,
+                        isFrontCamera: true,
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: Icon(Icons.camera_alt, color: Colors.black, size: 30),
+            ),
+          ),
         ),
-      ),
-    );
-  }
+      ],
+    ),
+  );
+}
 }

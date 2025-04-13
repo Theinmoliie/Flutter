@@ -9,15 +9,14 @@ import 'providers/skin_profile_provider.dart'; // Import Provider
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Supabase.initialize(
-    url: supabaseUrl,
-    anonKey: supabaseAnonKey,
-  );
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => SkinProfileProvider()), // Add provider
+        ChangeNotifierProvider(
+          create: (_) => SkinProfileProvider(),
+        ), // Add provider
       ],
       child: const MyApp(),
     ),
@@ -30,6 +29,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple, 
+          brightness: Brightness.light,
+        ),
+      ),
       debugShowCheckedModeBanner: false,
       home: RegisterScreen(),
       initialRoute: '/',

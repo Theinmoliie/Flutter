@@ -95,13 +95,22 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
 
   @override
   Widget build(BuildContext context) {
+    // Use theme colors
+    final colorScheme = Theme.of(context).colorScheme;
+    
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text("Product Analysis"),
-          backgroundColor: const Color.fromARGB(255, 170, 136, 176),
+          title: const Text(
+            "Product Analysis",
+            style: TextStyle(color: Colors.white), // Explicit white text
+          ),
+
+          backgroundColor: colorScheme.primary,
           bottom: const TabBar(
+            labelColor: Colors.white, // Active tab text
+            unselectedLabelColor: Colors.white70, // Inactive tab text
             tabs: [Tab(text: 'Safety Score'), Tab(text: 'Compatibility')],
           ),
         ),
@@ -121,6 +130,29 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+        Column(
+          children: [
+            Text(
+              productName,
+              style: const TextStyle(
+                fontSize: 22, 
+                fontWeight: FontWeight.bold
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              brand,
+              style: TextStyle(
+                fontSize: 16, 
+                color: Colors.grey[600]
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+        
           Center(
             child: SizedBox(
               width: double.infinity,
@@ -522,7 +554,8 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
           }
         },        
             style: ElevatedButton.styleFrom(
-            backgroundColor: const Color.fromARGB(255, 170, 136, 176),
+            backgroundColor:  Colors.brown[900],
+            
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
           child: const Text(

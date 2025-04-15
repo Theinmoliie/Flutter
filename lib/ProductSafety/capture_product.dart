@@ -4,10 +4,10 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:string_similarity/string_similarity.dart';
 import 'package:provider/provider.dart';
-import './providers/skin_profile_provider.dart';
-import 'score_util.dart';
-import 'compatibility_util.dart';
-import 'compatibility_tab.dart';
+import '../providers/skin_profile_provider.dart';
+import '../util/safetyscore_util.dart';
+import '../util/compatibilityscore_util.dart';
+import 'product_analysis.dart';
 
 class StagingScreen extends StatefulWidget {
   final File imageFile;

@@ -69,45 +69,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  Future<void> _handleGoogleSignIn() async {
-    setState(() => _isLoading = true); // Indicate loading for Google button too
+    // register.dart -> _RegisterScreenState class
+  Future<void> _handleGoogleSignUp() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
     try {
-      // Note: Google Sign-In typically handles navigation via deep linking callbacks
-      // defined in your Supabase setup and native configurations (Android/iOS).
-      // Automatic navigation after this call might not be reliable or immediate.
-      // Listen to auth state changes for navigation instead.
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        // Ensure this matches your Supabase > Auth > URL Configuration > Redirect URLs
-        // AND your native platform setup (AndroidManifest.xml / Info.plist)
-        redirectTo: 'io.supabase.flutterquickstart://login-callback/', // Replace with your actual scheme if different
+        // Make sure this matches the one checked in _handleDeepLink
+        redirectTo: 'io.supabase.flutter://signup-callback',
       );
-
-      // Showing success immediately might be premature as the callback handles the final login.
-      // It's better to rely on the auth state listener in your main app/splash screen.
-      // If you MUST show something:
-      // if (mounted) {
-      //   ScaffoldMessenger.of(context).showSnackBar(
-      //     SnackBar(content: Text("Redirecting to Google Sign In...")),
-      //  );
-      // }
-
     } on AuthException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Google Sign In Failed: ${e.message}")),
-        );
-      }
-    } catch (e) {
+      // ... error handling ...
        if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("An unexpected error occurred: $e")),
-        );
-      }
-    } finally {
-       if (mounted) {
-        setState(() => _isLoading = false);
+         ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text("Google Sign Up Failed: ${e.message}")),
+         );
        }
+    } catch (e) {
+      // ... error handling ...
+        if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text("An unexpected error occurred: $e")),
+         );
+       }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -234,7 +223,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       height: 20.0, // Adjust size as needed
                   ),
                   label: const Text("Sign Up with Google"),
-                  onPressed: _isLoading ? null : _handleGoogleSignIn,
+                  onPressed: _isLoading ? null : _handleGoogleSignUp,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: colorScheme.onBackground, // Text color
                     padding: const EdgeInsets.symmetric(vertical: 14), // Slightly less padding than main button

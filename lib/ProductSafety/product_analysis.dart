@@ -2,8 +2,8 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'score_util.dart';
-import './providers/skin_profile_provider.dart';
+import '../util/safetyscore_util.dart';
+import '../providers/skin_profile_provider.dart';
 
 class CompatibilityTab extends StatelessWidget {
   final String productName;

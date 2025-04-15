@@ -1,14 +1,53 @@
 import 'package:flutter/material.dart';
 import 'home.dart';
-import 'skin_profile.dart';
-import 'camera.dart'; // Import the selfie screen
+import 'UserProfile/skin_profile.dart';
+import 'AiSkinAnalysis/selfie.dart'; // Import the selfie screen
 
 class MainScreen extends StatefulWidget {
+  // Add constructor parameter
+  final bool showSuccessDialog;
+
+  const MainScreen({
+    Key? key,
+    this.showSuccessDialog = false, // Default to false
+  }) : super(key: key);
+
   @override
   MainScreenState createState() => MainScreenState();
 }
 
 class MainScreenState extends State<MainScreen> {
+
+  @override
+  void initState() {
+    super.initState();
+    // Check the flag after the first frame is built
+    if (widget.showSuccessDialog) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showSignUpSuccessSnackbar();
+();
+      });
+    }
+  }
+
+
+  // Method to show the dialog
+   void _showSignUpSuccessSnackbar() {
+     // Ensure context is still valid and has a Scaffold ancestor
+    if (!mounted || !ScaffoldMessenger.maybeOf(context)!.mounted) return;
+
+    // Use ScaffoldMessenger to show a SnackBar
+    ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(
+        content: Text("Account successfully created"),
+        duration: Duration(seconds: 4), // Adjust duration as needed
+        behavior: SnackBarBehavior.floating, // Optional: Makes it float
+       ),
+    );
+   }
+
+
+  
   int _selectedIndex = 0;
 
   void _onProfileSaved(Map<String, dynamic> profile) {

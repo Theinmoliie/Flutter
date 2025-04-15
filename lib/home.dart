@@ -4,8 +4,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
-import 'staging.dart';
-import 'safety_result.dart';
+import 'ProductSafety/capture_product.dart';
+import 'ProductSafety/search_product.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback onSwitchToProfile; // Callback to switch to profile tab
@@ -96,6 +96,31 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 
+  Future<void> _handleLogout() async {
+    if (!mounted) return; // Check if widget is still mounted
+
+    try {
+      await _supabase.auth.signOut();
+      // No explicit navigation needed here!
+      // The onAuthStateChange listener in your main.dart
+      // should detect the signOut event and navigate to LoginScreen.
+      print("User logged out successfully.");
+
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Logout Failed: ${e.message}")),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("An unexpected error occurred during logout: $e")),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
      // Use theme colors
@@ -108,8 +133,17 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: colorScheme.primary,
-        
+
+         actions: [
+          IconButton(
+            icon: Icon(Icons.logout, color: Colors.white), // Logout icon
+            tooltip: 'Logout', // Accessibility feature
+            onPressed: _handleLogout, // Call the logout function
+          ),
+        ],
+        // --- END ACTIONS ---
       ),
+        
       body: Stack(
         children: [
           // Background Image

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../providers/skin_profile_provider.dart'; // Make sure this path is correct
+import '../../providers/skin_profile_provider.dart'; // Make sure this path is correct
 
 final supabase = Supabase.instance.client;
 

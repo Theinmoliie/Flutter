@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'score_util.dart';
-import 'compatibility_util.dart';
+import '../util/safetyscore_util.dart';
+import '../util/compatibilityscore_util.dart';
 import 'package:provider/provider.dart';
-import './providers/skin_profile_provider.dart';
-import 'compatibility_tab.dart';
+import '../providers/skin_profile_provider.dart';
+import 'product_analysis.dart';
 
 class SafetyResultScreen extends StatefulWidget {
   final int productId;

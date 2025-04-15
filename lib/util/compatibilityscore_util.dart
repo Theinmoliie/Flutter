@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/skin_profile_provider.dart';
+import '../../providers/skin_profile_provider.dart';
 
 double calculateCompatibilityScore({
   required BuildContext context,

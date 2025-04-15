@@ -1,8 +1,8 @@
 // 📁 lib/pages/result_page.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'quality_checker.dart';
-import 'analysis_page.dart'; // Add this import
+import 'selfie_quality_checker.dart';
+import 'skin_analysis_result(dummy).dart'; // Add this import
 
 
 class ResultPage extends StatelessWidget {

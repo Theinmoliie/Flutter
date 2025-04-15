@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'skin_results_screen.dart';
-import 'quality_checker.dart';
+import 'review_selfie.dart';
+import 'selfie_quality_checker.dart';
 
 class CameraPage extends StatefulWidget {
   @override

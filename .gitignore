@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Supabase env key
+# This file contains sensitive information and should not be shared publicly.
+/supabase_config.dart

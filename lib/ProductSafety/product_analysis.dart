@@ -432,8 +432,7 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
           _buildProductHeader(),
           const SizedBox(height: 20),
 
-          if (skinProfile.userSkinTypeId == null ||
-              skinProfile.userConcernIds.isEmpty)
+          if (skinProfile.userSkinTypeId == null || skinProfile.userSensitivityLevel == null)
             _buildProfileSetupPrompt(context)
           else if (isLoadingCompatibility)
             const CircularProgressIndicator()
@@ -571,21 +570,19 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
 
   // ... (other parts of the CompatibilityTab class) ...
 
+  // product_analysis.dart
+
+// ... (imports and other parts of the class)
+
   Widget _buildScoreSection(BuildContext context) {
     final skinProfile = Provider.of<SkinProfileProvider>(
       context,
-      listen: false, // Usually false is fine here if just reading once
+      listen: false,
     );
 
-    // --- Check if profile is set ---
-    // Ensure skin type is selected before proceeding.
-    // If not, return a message prompting profile setup (similar to _buildProfileSetupPrompt).
-    // Alternatively, the parent widget might already prevent reaching here if profile isn't set.
-    // For robustness, let's add the check here too.
     if (skinProfile.userSkinTypeId == null) {
-       // This should ideally not be reached if the main logic in _buildCompatibilityTab works,
-       // but it's a safe fallback.
-        return Column(
+        // ... (existing profile setup prompt logic) ...
+         return Column(
             children: [
                 const Text(
                     "Please set your skin profile first.",
@@ -594,7 +591,7 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
                 ),
                 const SizedBox(height: 10),
                  ElevatedButton(
-                    onPressed: onProfileRequested, // Use the callback passed to the widget
+                    onPressed: onProfileRequested,
                     style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.brown[900],
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -607,12 +604,9 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
             ]
         );
     }
-    // --- End Profile Check ---
 
-
-    // --- Check if score is calculated ---
-    // If compatibility score is null (might happen if calculation failed or hasn't run)
     if (compatibilityScore == null) {
+        // ... (existing score not available logic) ...
         return const Center(
             child: Text(
                 "Compatibility score not available yet.",
@@ -620,117 +614,116 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
             ),
         );
     }
-    // --- End Score Check ---
 
-
-    // Determine score color based on the calculated score
     final scoreColor =
-        compatibilityScore! >= 65  // Use ! because we checked for null above
+        compatibilityScore! >= 65
             ? Colors.green
             : compatibilityScore! >= 40
             ? Colors.orange
             : Colors.red;
 
     // Get descriptive names for profile items
-    final skinTypeName = getSkinTypeName(skinProfile.userSkinTypeId!); // Use ! because we checked for null profile
-    final concernNames = skinProfile.userConcernIds.isEmpty
-        ? "no specific concerns" // Handle case with no concerns selected
-        : skinProfile.userConcernIds.map((id) => getConcernName(id)).join(", "); // Join multiple concerns
-    final sensitivityLevel = skinProfile.userSensitivityLevel; // Get sensitivity level
+    final skinTypeName = getSkinTypeName(skinProfile.userSkinTypeId!);
+    final sensitivityLevel = skinProfile.userSensitivityLevel ?? 'Unknown'; // Handle potential null from provider
 
+    // --- MODIFIED: Handle empty concern list ---
+    final String concernText;
+    if (skinProfile.userConcernIds.isEmpty) {
+        concernText = "no specific concerns selected"; // Text for 'None' case
+    } else {
+        concernText = "concerns of ${skinProfile.userConcernIds.map((id) => getConcernName(id)).join(", ")}"; // Original text
+    }
+    // --- END MODIFIED ---
 
     return Column(
       children: [
-        // --- UPDATED TEXT Displaying the Profile Summary ---
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0), // Add padding if text might wrap
+          padding: const EdgeInsets.symmetric(horizontal: 8.0),
           child: Text(
-            // Example: "Analysis for Dry skin (Medium Sensitivity) with Redness."
+            // --- UPDATED: Use concernText variable ---
             "Analysis for $skinTypeName skin "
-            "(${sensitivityLevel} Sensitivity) with $concernNames.",
+            "($sensitivityLevel Sensitivity) with $concernText.",
+            // --- END UPDATED ---
             style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
         ),
-        // ---------------------------------------------------
         const SizedBox(height: 12),
 
-        // --- The Score Display Container ---
+        // --- The Score Display Container (No changes needed here) ---
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: scoreColor.withOpacity(0.1), // Background based on score color
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: scoreColor.withOpacity(0.3), width: 1), // Border based on score color
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween, // Space out elements
-            children: [
-              // --- Left Side: Recommendation Text ---
-              Expanded( // Allow text to take available space and wrap
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "COMPATIBILITY",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5, // Optional: adjust spacing
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      recommendationStatus, // Display the calculated status (e.g., "Recommended", "Use with Caution")
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: scoreColor, // Text color based on score
-                      ),
-                      maxLines: 2, // Allow up to 2 lines
-                      overflow: TextOverflow.ellipsis, // Add ellipsis if text is too long
-                    ),
-                  ],
-                ),
-              ),
-              // --- Right Side: Score Percentage and Icon ---
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: scoreColor.withOpacity(0.2), // Slightly stronger background for score
-                  borderRadius: BorderRadius.circular(20), // Pill shape
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min, // Row takes minimum space needed
-                  children: [
-                    Text(
-                      "${compatibilityScore!.toStringAsFixed(1)}%", // Display score, use ! safely
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: scoreColor, // Text color based on score
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    // Icon corresponding to the score range
-                    Icon(
-                      compatibilityScore! >= 65
-                          ? Icons.check_circle // Good score icon
-                          : compatibilityScore! >= 40
-                          ? Icons.warning_amber_rounded // Medium score icon (using amber variant)
-                          : Icons.error_outline, // Low score icon
-                      size: 18,
-                      color: scoreColor, // Icon color based on score
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+           // ... (rest of the score container code) ...
+           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+           decoration: BoxDecoration(
+             color: scoreColor.withOpacity(0.1),
+             borderRadius: BorderRadius.circular(12),
+             border: Border.all(color: scoreColor.withOpacity(0.3), width: 1),
+           ),
+           child: Row(
+             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+             children: [
+               Expanded(
+                 child: Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                     Text(
+                       "COMPATIBILITY",
+                       style: TextStyle(
+                         fontSize: 12,
+                         color: Colors.grey[600],
+                         fontWeight: FontWeight.bold,
+                         letterSpacing: 0.5,
+                       ),
+                     ),
+                     const SizedBox(height: 4),
+                     Text(
+                       recommendationStatus,
+                       style: TextStyle(
+                         fontSize: 16,
+                         fontWeight: FontWeight.bold,
+                         color: scoreColor,
+                       ),
+                       maxLines: 2,
+                       overflow: TextOverflow.ellipsis,
+                     ),
+                   ],
+                 ),
+               ),
+               Container(
+                 padding: const EdgeInsets.symmetric(
+                   horizontal: 12,
+                   vertical: 8,
+                 ),
+                 decoration: BoxDecoration(
+                   color: scoreColor.withOpacity(0.2),
+                   borderRadius: BorderRadius.circular(20),
+                 ),
+                 child: Row(
+                   mainAxisSize: MainAxisSize.min,
+                   children: [
+                     Text(
+                       "${compatibilityScore!.toStringAsFixed(1)}%",
+                       style: TextStyle(
+                         fontSize: 18,
+                         fontWeight: FontWeight.bold,
+                         color: scoreColor,
+                       ),
+                     ),
+                     const SizedBox(width: 4),
+                     Icon(
+                       compatibilityScore! >= 65
+                           ? Icons.check_circle
+                           : compatibilityScore! >= 40
+                           ? Icons.warning_amber_rounded
+                           : Icons.error_outline,
+                       size: 18,
+                       color: scoreColor,
+                     ),
+                   ],
+                 ),
+               ),
+             ],
+           ),
         ),
       ],
     );

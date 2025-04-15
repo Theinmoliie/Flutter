@@ -23,23 +23,24 @@ class SkinProfileScreen extends StatefulWidget {
 class _SkinProfileScreenState extends State<SkinProfileScreen> {
   // Existing state
   int? _selectedSkinTypeId;
-  final Set<int> _selectedConcernIds = {};
+  final Set<int> _selectedConcernIds = {}; // Stores REAL concern IDs (not 0)
   bool _isLoadingSkinTypes = true;
   bool _isLoadingConcerns = true;
   List<Map<String, dynamic>> _skinTypes = [];
-  List<Map<String, dynamic>> _skinConcerns = [];
+  List<Map<String, dynamic>> _skinConcerns = []; // Fetched concerns from DB
 
-  // --- MODIFIED: State for Sensitivity Level (starts null) ---
-  String? _selectedSensitivityLevel; // Store the selected level (nullable)
-  final List<String> _sensitivityOptions = const ['Low', 'Medium', 'High']; // Define options
-  // -----------------------------------------------------------
+  // --- NEW: State for 'None' concern ---
+  bool _isNoneConcernSelected = false;
+  // --- END NEW ---
+
+  String? _selectedSensitivityLevel;
+  final List<String> _sensitivityOptions = const ['Low', 'Medium', 'High'];
 
   @override
   void initState() {
     super.initState();
     _fetchSkinTypes();
     _fetchSkinConcerns();
-    // Load profile after initial frame build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _loadSavedProfile();
@@ -51,34 +52,42 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
     if (!mounted) return;
     final profileProvider = Provider.of<SkinProfileProvider>(context, listen: false);
 
-    // --- MODIFIED: Load existing selections including nullable sensitivity level ---
     if (profileProvider.userSkinTypeId != null ||
-        profileProvider.userConcernIds.isNotEmpty ||
-        profileProvider.userSensitivityLevel != null ) { // Check if sensitivity is not null
+        profileProvider.userConcernIds.isNotEmpty || // Check if provider has concerns
+        profileProvider.userSensitivityLevel != null) {
       if (mounted) {
         setState(() {
           _selectedSkinTypeId = profileProvider.userSkinTypeId;
           _selectedConcernIds.clear();
           _selectedConcernIds.addAll(profileProvider.userConcernIds);
-          // --- MODIFIED: Load Sensitivity Level (or keep null if not set) ---
           _selectedSensitivityLevel = profileProvider.userSensitivityLevel;
-          // Ensure loaded level is one of the options, otherwise set to null
-          if (_selectedSensitivityLevel != null && !_sensitivityOptions.contains(_selectedSensitivityLevel)) {
-              _selectedSensitivityLevel = null; // Fallback to null if invalid
+
+          // --- MODIFIED: Determine if 'None' should be initially checked ---
+          // If the loaded profile has NO specific concerns, mark 'None' as selected.
+          // Important: Only do this if the profile has actually been saved before
+          // (we infer this if skin type or sensitivity is set).
+          // Otherwise, a new user would default to 'None' checked.
+          if (profileProvider.userConcernIds.isEmpty &&
+              (profileProvider.userSkinTypeId != null || profileProvider.userSensitivityLevel != null)) {
+             _isNoneConcernSelected = true;
+          } else {
+            _isNoneConcernSelected = false; // Make sure it's false if concerns exist
           }
-          // --------------------------------------------------------------
+          // --- END MODIFIED ---
+
+          if (_selectedSensitivityLevel != null && !_sensitivityOptions.contains(_selectedSensitivityLevel)) {
+              _selectedSensitivityLevel = null;
+          }
         });
       }
     } else {
-        // --- REMOVED: No need to set a default sensitivity level here ---
-        // if (mounted) {
-        //   setState(() {
-        //     // _selectedSensitivityLevel = 'Medium'; // No default selection
-        //   });
-        // }
-        // _selectedSensitivityLevel remains null if nothing is loaded
+       // If nothing is loaded, ensure 'None' is not selected by default
+       if (mounted) {
+         setState(() {
+           _isNoneConcernSelected = false;
+         });
+       }
     }
-    // --------------------------------------------------------------------------
   }
 
   Future<void> _fetchSkinTypes() async {
@@ -108,14 +117,14 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
   }
 
   Future<void> _fetchSkinConcerns() async {
-    // ... (keep existing fetch logic) ...
+     // ... (keep existing fetch logic) ...
      if (!mounted) return;
     setState(() => _isLoadingConcerns = true);
     try {
       final response = await supabase
           .from('Skin Concerns')
           .select('concern_id, concern')
-          .order('concern_id');
+          .order('concern_id'); // You might want to order by 'concern' name alphabetically
 
       if (mounted) {
         setState(() {
@@ -138,11 +147,9 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
       setState(() {
         _selectedSkinTypeId = null;
         _selectedConcernIds.clear();
-        // --- MODIFIED: Clear Sensitivity Level to null ---
-        _selectedSensitivityLevel = null; // Reset to null (no selection)
-        // ---------------------------------------------
+        _selectedSensitivityLevel = null;
+        _isNoneConcernSelected = false; // Also clear 'None' selection
       });
-      // Optionally clear provider too if desired and implemented
       Provider.of<SkinProfileProvider>(context, listen: false).clearProfile();
       ScaffoldMessenger.of(context).showSnackBar(
        const SnackBar(content: Text('Selections cleared')),
@@ -155,63 +162,67 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
     // --- UPDATED VALIDATION LOGIC ---
     if (_selectedSkinTypeId == null) {
       _showValidationErrorDialog('Please select your skin type.');
-      return; // Stop execution
+      return;
     }
-    // --- VALIDATE Sensitivity Level ---
-    // This check remains the same, but now correctly handles the null state
     if (_selectedSensitivityLevel == null) {
        _showValidationErrorDialog('Please select your sensitivity level.');
-       return; // Stop execution
+       return;
     }
-    // -------------------------------------
-    // Optionally keep validation for concerns if needed
-    // if (_selectedConcernIds.isEmpty) {
-    //   _showValidationErrorDialog('Please select at least one skin concern.');
-    //   return;
-    // }
-      // --- END UPDATED VALIDATION LOGIC ---
 
+    // --- MODIFIED: Concern Validation ---
+    // Must select either 'None' OR at least one specific concern
+    if (!_isNoneConcernSelected && _selectedConcernIds.isEmpty) {
+      _showValidationErrorDialog('Please select at least one skin concern, or select \'None\'.');
+      return;
+    }
+    // --- END MODIFIED ---
 
-    // Handle potential null skin type safely
+    // Handle potential null skin type safely (no changes needed here)
     final selectedSkinTypeData = _selectedSkinTypeId == null
         ? null
         : _skinTypes.firstWhere(
             (type) => type['skin_type_id'] == _selectedSkinTypeId,
-            orElse: () => {'skin_type': null}, // Safety net
+            orElse: () => {'skin_type': null},
           );
-    final selectedSkinTypeName = selectedSkinTypeData?['skin_type'] as String?; // Can be null
+    final selectedSkinTypeName = selectedSkinTypeData?['skin_type'] as String?;
 
+    // --- MODIFIED: Prepare concern data for provider ---
+    // If 'None' is selected, send an empty list of concerns/IDs.
+    // Otherwise, send the selected ones.
+    final List<String> concernsToSave;
+    final List<int> concernIdsToSave;
 
-    final selectedConcerns = _skinConcerns
-        .where((concern) => _selectedConcernIds.contains(concern['concern_id']))
-        .map((concern) => concern['concern'] as String)
-        .toList();
+    if (_isNoneConcernSelected) {
+        concernsToSave = []; // Empty list for 'None'
+        concernIdsToSave = []; // Empty list for 'None'
+    } else {
+        concernsToSave = _skinConcerns
+            .where((concern) => _selectedConcernIds.contains(concern['concern_id']))
+            .map((concern) => concern['concern'] as String)
+            .toList();
+        concernIdsToSave = _selectedConcernIds.toList(); // Use the actual selected IDs
+    }
+    // --- END MODIFIED ---
 
-    // --- UPDATE: Update provider with Sensitivity ---
+    // Update provider with potentially empty concern lists if 'None' was selected
     Provider.of<SkinProfileProvider>(context, listen: false).updateSkinProfile(
-      skinType: selectedSkinTypeName, // Pass nullable String
-      skinTypeId: _selectedSkinTypeId, // Pass nullable int
-      concerns: selectedConcerns,
-      concernIds: _selectedConcernIds.toList(),
-      sensitivityLevel: _selectedSensitivityLevel, // Pass selected level (nullable, but validated not to be null here)
+      skinType: selectedSkinTypeName,
+      skinTypeId: _selectedSkinTypeId,
+      concerns: concernsToSave,
+      concernIds: concernIdsToSave,
+      sensitivityLevel: _selectedSensitivityLevel,
     );
-    // --------------------------------------------
 
-    // Notify parent about saved profile - Include sensitivity level
+    // Notify parent about saved profile (pass the actual IDs saved)
     widget.onProfileSaved?.call({
       'skinTypeId': _selectedSkinTypeId,
-      'concernIds': _selectedConcernIds.toList(),
-      // --- Include Sensitivity Level ---
+      'concernIds': concernIdsToSave, // Pass the IDs that were saved
       'sensitivityLevel': _selectedSensitivityLevel,
-      // ------------------------------------
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Profile successfully saved!')),
     );
-
-    // Optional: Automatically go back after saving
-    // widget.onBackPressed?.call();
   }
 
   // Helper for validation dialog (remains the same)
@@ -236,16 +247,13 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    // --- FILTER OUT "Sensitive" Skin Type from display ---
     final displayableSkinTypes = _skinTypes
         .where((type) =>
             type['skin_type']?.toString().toLowerCase() != 'sensitive')
         .toList();
-    // ------------------------------------------------------
 
     return Scaffold(
       appBar: AppBar(
-         // ... (keep existing AppBar setup) ...
         title: const Text(
           'Skin Profile',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -263,21 +271,19 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- SKIN TYPE SECTION (Using Filtered List) ---
-            // ... (remains the same) ...
-             const Text(
+            // --- SKIN TYPE SECTION (No changes) ---
+            const Text(
               'Select Your Skin Type',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             _isLoadingSkinTypes
                 ? const Center(child: CircularProgressIndicator())
-                : displayableSkinTypes.isEmpty // Use filtered list here
+                : displayableSkinTypes.isEmpty
                   ? const Center(child: Text('No skin types found.'))
                   : Column(
-                    // Use filtered list here
                     children: displayableSkinTypes.map((type) {
-                      return RadioListTile<int?>( // Use nullable int for groupValue
+                      return RadioListTile<int?>(
                         title: Text(type['skin_type'] ?? 'Unknown Type'),
                         value: type['skin_type_id'],
                         groupValue: _selectedSkinTypeId,
@@ -288,9 +294,9 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
                       );
                     }).toList(),
                   ),
-            const SizedBox(height: 24), // Spacing
+            const SizedBox(height: 24),
 
-              // --- SENSITIVITY LEVEL SECTION ---
+            // --- SENSITIVITY LEVEL SECTION (No changes) ---
             const Text(
               'Select Your Sensitivity Level',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -298,12 +304,10 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
             const SizedBox(height: 8),
             Column(
               children: _sensitivityOptions.map((level) {
-                // The RadioListTile naturally handles a null groupValue
-                // by showing no option as selected.
-                return RadioListTile<String?>( // Use nullable String for groupValue
+                return RadioListTile<String?>(
                   title: Text(level),
                   value: level,
-                  groupValue: _selectedSensitivityLevel, // Can be null
+                  groupValue: _selectedSensitivityLevel,
                   onChanged: (value) {
                     if (mounted) setState(() => _selectedSensitivityLevel = value);
                   },
@@ -312,43 +316,76 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
               }).toList(),
             ),
             const SizedBox(height: 24),
-            // ---------------------------------------
 
-            // --- SKIN CONCERNS SECTION (Remains the same) ---
-            // ... (remains the same) ...
-             const Text(
+            // --- SKIN CONCERNS SECTION (MODIFIED) ---
+            const Text(
               'Select Your Skin Concerns',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             _isLoadingConcerns
                 ? const Center(child: CircularProgressIndicator())
-                : _skinConcerns.isEmpty
+                : _skinConcerns.isEmpty // Check if *fetched* concerns are empty
                   ? const Center(child: Text('No skin concerns found.'))
                   : Column(
-                    children: _skinConcerns.map((concern) {
-                      return CheckboxListTile(
-                        title: Text(concern['concern'] ?? 'Unknown Concern'),
-                        value: _selectedConcernIds.contains(concern['concern_id']),
-                        onChanged: (bool? value) {
-                           if (mounted) {
+                      children: [
+                        // --- NEW: 'None' Checkbox ---
+                        CheckboxListTile(
+                          title: const Text('None'),
+                          value: _isNoneConcernSelected,
+                          onChanged: (bool? value) {
+                            if (mounted && value != null) { // Check for null value
                               setState(() {
-                               if (value == true) {
-                                  _selectedConcernIds.add(concern['concern_id']);
-                                } else {
-                                  _selectedConcernIds.remove(concern['concern_id']);
+                                _isNoneConcernSelected = value;
+                                if (_isNoneConcernSelected) {
+                                  // If 'None' is checked, clear all other selections
+                                  _selectedConcernIds.clear();
                                 }
+                                // If 'None' is unchecked, the user needs to select other concerns
                               });
                             }
-                        },
+                          },
                           activeColor: colorScheme.primary,
-                      );
-                    }).toList(),
-                  ),
+                        ),
+                        // --- END NEW ---
+
+                        // --- Divider (Optional) ---
+                        const Divider(height: 1, thickness: 1),
+                        const SizedBox(height: 8),
+                        // --- End Divider ---
+
+                        // --- List of Real Concerns ---
+                        ..._skinConcerns.map((concern) { // Use spread operator (...)
+                          final int concernId = concern['concern_id'];
+                          return CheckboxListTile(
+                            title: Text(concern['concern'] ?? 'Unknown Concern'),
+                            // Only allow checking if 'None' is NOT selected
+                            // Value is true only if 'None' is false AND this ID is selected
+                            value: !_isNoneConcernSelected && _selectedConcernIds.contains(concernId),
+                            onChanged: _isNoneConcernSelected ? null : (bool? value) { // Disable if 'None' is selected
+                              if (mounted && value != null) {
+                                setState(() {
+                                  if (value == true) {
+                                    // Checking a real concern automatically unchecks 'None' (handled by value logic)
+                                    // _isNoneConcernSelected = false; // This state change happens implicitly via the `value` binding
+                                    _selectedConcernIds.add(concernId);
+                                  } else {
+                                    _selectedConcernIds.remove(concernId);
+                                  }
+                                });
+                              }
+                            },
+                            activeColor: colorScheme.primary,
+                            // Optional: Make it look disabled if 'None' is checked
+                            controlAffinity: ListTileControlAffinity.leading,
+                            enabled: !_isNoneConcernSelected, // Disable interaction if 'None' is selected
+                          );
+                        }).toList(),
+                      ],
+                    ),
             const SizedBox(height: 32),
 
-            // --- BUTTONS SECTION (Remains the same) ---
-             // ... (remains the same) ...
+            // --- BUTTONS SECTION (No changes) ---
               Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -361,14 +398,12 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-
                   child: const Text(
                     'Clear',
                     style: TextStyle(fontSize: 18, color: Colors.white),
                   ),
                 ),
                 const SizedBox(width: 20),
-
                 ElevatedButton(
                   onPressed: _saveProfile,
                   style: ElevatedButton.styleFrom(
@@ -385,7 +420,7 @@ class _SkinProfileScreenState extends State<SkinProfileScreen> {
                 ),
               ],
             ),
-             const SizedBox(height: 20), // Add some padding at the bottom
+             const SizedBox(height: 20),
           ],
         ),
       ),

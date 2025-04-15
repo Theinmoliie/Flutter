@@ -153,19 +153,22 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
           ],
         ),
         
-          Center(
-            child: SizedBox(
-              width: double.infinity,
-              height: 300,
-              child:
-                  imageFile != null
-                      ? Image.file(imageFile!, fit: BoxFit.contain)
-                      : (imageUrl?.isNotEmpty ?? false)
-                      ? Image.network(imageUrl!, fit: BoxFit.contain)
-                      : Image.asset(
-                        'assets/placeholder.png',
-                        fit: BoxFit.contain,
+          Center( // Keep the Center widget
+            child: SizedBox( // Use SizedBox to explicitly set the size
+               width: 180,
+               height: 180,
+               child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: imageFile != null
+                    ? Image.file(
+                        imageFile!,
+                        fit: BoxFit.cover,
+                      )
+                    : Image.asset(
+                        'assets/placeholder.png', // Ensure this asset exists
+                        fit: BoxFit.cover,
                       ),
+             ),
             ),
           ),
           const SizedBox(height: 10),
@@ -556,35 +559,9 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
                   height: 180,
                   width: 180,
                   fit: BoxFit.cover,
-                  // Add error builder for robustness
-                   errorBuilder: (context, error, stackTrace) => Container(
-                      height: 180, width: 180, color: Colors.grey[200],
-                      child: const Icon(Icons.broken_image, color: Colors.grey, size: 40)
-                    ),
+                  
                 )
-              : (imageUrl?.isNotEmpty ?? false)
-                  ? Image.network(
-                      imageUrl!,
-                      height: 180,
-                      width: 180,
-                      fit: BoxFit.cover,
-                      // Add loading and error builders for network images
-                       loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                             height: 180, width: 180, color: Colors.grey[200],
-                             child: Center(child: CircularProgressIndicator(
-                               value: loadingProgress.expectedTotalBytes != null
-                                   ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                   : null,
-                             ))
-                           );
-                       },
-                       errorBuilder: (context, error, stackTrace) => Container(
-                         height: 180, width: 180, color: Colors.grey[200],
-                         child: const Icon(Icons.error_outline, color: Colors.red, size: 40)
-                       ),
-                    )
+              
                   : Image.asset(
                       'assets/placeholder.png', // Ensure this asset exists
                       height: 180,

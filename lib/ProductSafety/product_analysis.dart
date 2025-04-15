@@ -220,6 +220,10 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
                       ingredient['originalIngredient'] ??
                       ingredient['Ingredient_Name'];
 
+                  // *** NEW: Check for Comedogenic Property ***
+                  final bool isComedogenic = ingredient['Comodogenic'] == true;
+                  // *** END NEW ***
+
                   return Container(
                     margin: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
@@ -265,13 +269,43 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
                               ),
                             ),
                           ),
-                          title: Text(
-                            ingredient['Ingredient_Name'] ?? "Not Specified",
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                         
+
+                          // *** MODIFIED: Title uses a Column ***
+                        title: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start, // Align items left
+                          mainAxisSize: MainAxisSize.min, // Take only needed vertical space
+                          children: [
+                            // Conditionally display the chip FIRST
+                            if (isComedogenic)
+                              Padding(
+                                // Add bottom padding if chip is shown
+                                padding: const EdgeInsets.only(bottom: 4.0),
+                                child: Chip(
+                                  label: const Text('Comedogenic'),
+                                  labelStyle: const TextStyle(fontSize: 10, color: Colors.white),
+                                  backgroundColor: Colors.purple.withOpacity(0.85),
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                  side: BorderSide.none,
+                                ),
+                              ),
+
+                            // Ingredient Name Text SECOND
+                            Text(
+                              ingredient['Ingredient_Name'] ?? "Not Specified",
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
+                               
                             ),
-                          ),
+                          ],
+                        ),
+                        // *** END MODIFIED Title ***
+
+                        
                           subtitle:
                               similarityScore < 1.0
                                   ? Column(
@@ -493,39 +527,70 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
   }
 
   Widget _buildProductHeader() {
+    // Get theme for potential future styling
+    // final theme = Theme.of(context);
+
     return Column(
+      // *** ADD THIS LINE ***
+      crossAxisAlignment: CrossAxisAlignment.center, // Center children horizontally
+      // *********************
       children: [
         Text(
           productName,
           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center,
+          textAlign: TextAlign.center, // Keep this for multi-line text centering
         ),
         const SizedBox(height: 8),
-        Text(brand, style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+        Text(
+          brand,
+          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+          textAlign: TextAlign.center, // Keep this for multi-line text centering
+        ),
         const SizedBox(height: 16),
+        // Keep the image part as is
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child:
-              imageFile != null
-                  ? Image.file(
-                    imageFile!,
-                    height: 180,
-                    width: 180,
-                    fit: BoxFit.cover,
-                  )
-                  : (imageUrl?.isNotEmpty ?? false)
+          child: imageFile != null
+              ? Image.file(
+                  imageFile!,
+                  height: 180,
+                  width: 180,
+                  fit: BoxFit.cover,
+                  // Add error builder for robustness
+                   errorBuilder: (context, error, stackTrace) => Container(
+                      height: 180, width: 180, color: Colors.grey[200],
+                      child: const Icon(Icons.broken_image, color: Colors.grey, size: 40)
+                    ),
+                )
+              : (imageUrl?.isNotEmpty ?? false)
                   ? Image.network(
-                    imageUrl!,
-                    height: 180,
-                    width: 180,
-                    fit: BoxFit.cover,
-                  )
+                      imageUrl!,
+                      height: 180,
+                      width: 180,
+                      fit: BoxFit.cover,
+                      // Add loading and error builders for network images
+                       loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                             height: 180, width: 180, color: Colors.grey[200],
+                             child: Center(child: CircularProgressIndicator(
+                               value: loadingProgress.expectedTotalBytes != null
+                                   ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                   : null,
+                             ))
+                           );
+                       },
+                       errorBuilder: (context, error, stackTrace) => Container(
+                         height: 180, width: 180, color: Colors.grey[200],
+                         child: const Icon(Icons.error_outline, color: Colors.red, size: 40)
+                       ),
+                    )
                   : Image.asset(
-                    'assets/placeholder.png',
-                    height: 180,
-                    width: 180,
-                    fit: BoxFit.cover,
-                  ),
+                      'assets/placeholder.png', // Ensure this asset exists
+                      height: 180,
+                      width: 180,
+                      fit: BoxFit.cover,
+                    ),
         ),
       ],
     );

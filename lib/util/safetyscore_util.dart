@@ -25,7 +25,7 @@ class ProductScorer {
     const double W_a = 1.0;  // Allergy Concern weight  0.3
     const double W_d = 1.0;  // Developmental Toxicity weight  0.4
     const double P_h = 2.0;  // High-risk penalty (EWG ≥7)
-    const double P_c = 0.5;  // Comedogenic penalty
+    const double P_c = 1.0;  // Comedogenic penalty
 
     double totalScore = 0;
     int highRiskCount = 0;

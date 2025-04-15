@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'home.dart';
-// import 'UserProfile/skin_profile.dart';
  import 'UserProfile/multi_screen.dart';
 import 'AiSkinAnalysis/selfie.dart'; // Import the selfie screen
 

@@ -1,7 +1,6 @@
 // main.dart
 
 import 'package:flutter/material.dart';
-// import 'package:flutter/services.dart'; // May not be needed directly for app_links errors
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:app_links/app_links.dart'; // Import app_links

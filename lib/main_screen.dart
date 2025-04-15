@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home.dart';
-import 'UserProfile/skin_profile.dart';
+// import 'UserProfile/skin_profile.dart';
+ import 'UserProfile/multi_screen.dart';
 import 'AiSkinAnalysis/selfie.dart'; // Import the selfie screen
 
 class MainScreen extends StatefulWidget {
@@ -61,7 +62,7 @@ class MainScreenState extends State<MainScreen> {
         HomeScreen(
           onSwitchToProfile: () => _onItemTapped(1),
         ),
-        SkinProfileScreen(
+        MultiPageSkinProfileScreen(
           onProfileSaved: _onProfileSaved,
           onBackPressed: () => _onItemTapped(0), // <-- PASS THE CALLBACK HERE
         ),

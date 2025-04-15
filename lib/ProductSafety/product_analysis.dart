@@ -567,40 +567,107 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
     );
   }
 
+   // product_analysis.dart
+
+  // ... (other parts of the CompatibilityTab class) ...
+
   Widget _buildScoreSection(BuildContext context) {
     final skinProfile = Provider.of<SkinProfileProvider>(
       context,
-      listen: false,
+      listen: false, // Usually false is fine here if just reading once
     );
+
+    // --- Check if profile is set ---
+    // Ensure skin type is selected before proceeding.
+    // If not, return a message prompting profile setup (similar to _buildProfileSetupPrompt).
+    // Alternatively, the parent widget might already prevent reaching here if profile isn't set.
+    // For robustness, let's add the check here too.
+    if (skinProfile.userSkinTypeId == null) {
+       // This should ideally not be reached if the main logic in _buildCompatibilityTab works,
+       // but it's a safe fallback.
+        return Column(
+            children: [
+                const Text(
+                    "Please set your skin profile first.",
+                    style: TextStyle(fontSize: 16, color: Colors.orange),
+                    textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                 ElevatedButton(
+                    onPressed: onProfileRequested, // Use the callback passed to the widget
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.brown[900],
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    child: const Text(
+                        "Set Skin Profile",
+                        style: TextStyle(color: Colors.white),
+                    ),
+                 ),
+            ]
+        );
+    }
+    // --- End Profile Check ---
+
+
+    // --- Check if score is calculated ---
+    // If compatibility score is null (might happen if calculation failed or hasn't run)
+    if (compatibilityScore == null) {
+        return const Center(
+            child: Text(
+                "Compatibility score not available yet.",
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+        );
+    }
+    // --- End Score Check ---
+
+
+    // Determine score color based on the calculated score
     final scoreColor =
-        compatibilityScore! >= 65
+        compatibilityScore! >= 65  // Use ! because we checked for null above
             ? Colors.green
             : compatibilityScore! >= 40
             ? Colors.orange
             : Colors.red;
 
+    // Get descriptive names for profile items
+    final skinTypeName = getSkinTypeName(skinProfile.userSkinTypeId!); // Use ! because we checked for null profile
+    final concernNames = skinProfile.userConcernIds.isEmpty
+        ? "no specific concerns" // Handle case with no concerns selected
+        : skinProfile.userConcernIds.map((id) => getConcernName(id)).join(", "); // Join multiple concerns
+    final sensitivityLevel = skinProfile.userSensitivityLevel; // Get sensitivity level
+
+
     return Column(
       children: [
-        Text(
-          "Analysis for ${getSkinTypeName(skinProfile.userSkinTypeId!)} skin with "
-          "${skinProfile.userConcernIds.map((id) => getConcernName(id)).join(", ")}",
-          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-          textAlign: TextAlign.center,
+        // --- UPDATED TEXT Displaying the Profile Summary ---
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0), // Add padding if text might wrap
+          child: Text(
+            // Example: "Analysis for Dry skin (Medium Sensitivity) with Redness."
+            "Analysis for $skinTypeName skin "
+            "(${sensitivityLevel} Sensitivity) with $concernNames.",
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            textAlign: TextAlign.center,
+          ),
         ),
+        // ---------------------------------------------------
         const SizedBox(height: 12),
 
+        // --- The Score Display Container ---
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: scoreColor.withOpacity(0.1),
+            color: scoreColor.withOpacity(0.1), // Background based on score color
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: scoreColor.withOpacity(0.3), width: 1),
+            border: Border.all(color: scoreColor.withOpacity(0.3), width: 1), // Border based on score color
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween, // Space out elements
             children: [
-              Expanded(
-                // Add Expanded here
+              // --- Left Side: Recommendation Text ---
+              Expanded( // Allow text to take available space and wrap
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -610,51 +677,54 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
                         fontSize: 12,
                         color: Colors.grey[600],
                         fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5, // Optional: adjust spacing
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      recommendationStatus,
+                      recommendationStatus, // Display the calculated status (e.g., "Recommended", "Use with Caution")
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: scoreColor,
+                        color: scoreColor, // Text color based on score
                       ),
-                      maxLines: 2, // Add maxLines
-                      overflow: TextOverflow.ellipsis, // Handle overflow
+                      maxLines: 2, // Allow up to 2 lines
+                      overflow: TextOverflow.ellipsis, // Add ellipsis if text is too long
                     ),
                   ],
                 ),
               ),
+              // --- Right Side: Score Percentage and Icon ---
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: scoreColor.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
+                  color: scoreColor.withOpacity(0.2), // Slightly stronger background for score
+                  borderRadius: BorderRadius.circular(20), // Pill shape
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisSize: MainAxisSize.min, // Row takes minimum space needed
                   children: [
                     Text(
-                      "${compatibilityScore!.toStringAsFixed(1)}%",
+                      "${compatibilityScore!.toStringAsFixed(1)}%", // Display score, use ! safely
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: scoreColor,
+                        color: scoreColor, // Text color based on score
                       ),
                     ),
                     const SizedBox(width: 4),
+                    // Icon corresponding to the score range
                     Icon(
                       compatibilityScore! >= 65
-                          ? Icons.check_circle
+                          ? Icons.check_circle // Good score icon
                           : compatibilityScore! >= 40
-                          ? Icons.warning
-                          : Icons.error_outline,
+                          ? Icons.warning_amber_rounded // Medium score icon (using amber variant)
+                          : Icons.error_outline, // Low score icon
                       size: 18,
-                      color: scoreColor,
+                      color: scoreColor, // Icon color based on score
                     ),
                   ],
                 ),

@@ -163,7 +163,7 @@ class SafetyResultScreenState extends State<SafetyResultScreen> {
 
   void analyzeCompatibility() {
     final skinProfile = Provider.of<SkinProfileProvider>(context, listen: false);
-    final int userSkinTypeId = skinProfile.userSkinTypeId;
+    final int? userSkinTypeId = skinProfile.userSkinTypeId;
     final List<int> userConcernIds = skinProfile.userConcernIds;
 
     final filteredResults = compatibilityResults.where((result) {

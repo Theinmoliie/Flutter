@@ -125,59 +125,83 @@ class CompatibilityTab extends StatelessWidget {
     );
   }
 
-  Widget _buildSafetyTab(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-        Column(
-          children: [
-            Text(
-              productName,
-              style: const TextStyle(
-                fontSize: 22, 
-                fontWeight: FontWeight.bold
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              brand,
-              style: TextStyle(
-                fontSize: 16, 
-                color: Colors.grey[600]
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-        
-          Center(
-            child: SizedBox(
-              width: double.infinity,
-              height: 300,
-              child:
-                  imageFile != null
-                      ? Image.file(imageFile!, fit: BoxFit.contain)
-                      : (imageUrl?.isNotEmpty ?? false)
-                      ? Image.network(imageUrl!, fit: BoxFit.contain)
-                      : Image.asset(
-                        'assets/placeholder.png',
-                        fit: BoxFit.contain,
-                      ),
-            ),
-          ),
-          const SizedBox(height: 10),
+  // product_analysis.dart
 
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            child: Image.asset(
-              'assets/SafetyScale.png',
-              height: 50,
-              width: double.infinity,
-            ),
+Widget _buildSafetyTab(BuildContext context) {
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      // Keep this as start if you want ingredient lists left-aligned below
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // *** WRAP THE HEADER ELEMENTS IN A CENTER WIDGET ***
+        Center(
+          child: Column(
+            // Make this inner column center its children too
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                productName,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center, // Ensure text itself centers if it wraps
+              ),
+              const SizedBox(height: 4),
+              Text(
+                brand,
+                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                textAlign: TextAlign.center, // Ensure text itself centers
+              ),
+              const SizedBox(height: 16),
+
+              // --- Your existing Image Loading Logic ---
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  height: 200, // Or use the helper function's size
+                  width: 200,
+                  // Using your provided direct Image logic:
+                  child: (imageUrl != null && imageUrl!.isNotEmpty)
+                      ? Image.network(
+                          imageUrl!,
+                          fit: BoxFit.cover,
+                          // Add loadingBuilder for better UX
+                          loadingBuilder: (context, child, loadingProgress) {
+                             if (loadingProgress == null) return child;
+                             return Center(child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                                strokeWidth: 2.0,
+                             ));
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                             print("Error loading network image in SafetyTab: $error");
+                             return Image.asset('assets/placeholder.png', fit: BoxFit.cover);
+                          }
+                        )
+                      : imageFile != null
+                          ? Image.file(
+                              imageFile!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                print("Error loading file image in SafetyTab: $error");
+                                return Image.asset('assets/placeholder.png', fit: BoxFit.cover);
+                              }
+                            )
+                          : Image.asset(
+                              'assets/placeholder.png',
+                              fit: BoxFit.cover,
+                            ),
+                  // Alternatively, call the helper function if you created one:
+                  // child: _buildProductImageWidget(),
+                ),
+              ),
+              // SizedBox below image is already outside the ClipRRect/SizedBox, which is correct.
+              // const SizedBox(height: 16), // This SizedBox was inside the Column in your code, keep it if desired spacing
+            ],
           ),
         ),
         // *** END CENTER WRAPPER ***
@@ -567,48 +591,34 @@ class CompatibilityTab extends StatelessWidget {
 
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: imageFile != null
-              ? Image.file(
-                  imageFile!,
-                  height: 180,
-                  width: 180,
-                  fit: BoxFit.cover,
-                  // Add error builder for robustness
-                   errorBuilder: (context, error, stackTrace) => Container(
-                      height: 180, width: 180, color: Colors.grey[200],
-                      child: const Icon(Icons.broken_image, color: Colors.grey, size: 40)
-                    ),
-                )
-              : (imageUrl?.isNotEmpty ?? false)
-                  ? Image.network(
+          child: SizedBox(
+            height: 200,
+            width: 200,
+            child:
+                (imageUrl != null && imageUrl!.isNotEmpty)
+                    ? Image.network(
                       imageUrl!,
-                      height: 180,
-                      width: 180,
                       fit: BoxFit.cover,
-                      // Add loading and error builders for network images
-                       loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                             height: 180, width: 180, color: Colors.grey[200],
-                             child: Center(child: CircularProgressIndicator(
-                               value: loadingProgress.expectedTotalBytes != null
-                                   ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                   : null,
-                             ))
-                           );
-                       },
-                       errorBuilder: (context, error, stackTrace) => Container(
-                         height: 180, width: 180, color: Colors.grey[200],
-                         child: const Icon(Icons.error_outline, color: Colors.red, size: 40)
-                       ),
+                      errorBuilder:
+                          (context, error, stackTrace) => Image.asset(
+                            'assets/placeholder.png',
+                            fit: BoxFit.cover,
+                          ),
                     )
-                  : Image.asset(
-                      'assets/placeholder.png', // Ensure this asset exists
-                      height: 180,
-                      width: 180,
+                    : imageFile != null
+                    ? Image.file(
+                      imageFile!,
                       fit: BoxFit.cover,
-                    ),
+                      errorBuilder:
+                          (context, error, stackTrace) => Image.asset(
+                            'assets/placeholder.png',
+                            fit: BoxFit.cover,
+                          ),
+                    )
+                    : Image.asset('assets/placeholder.png', fit: BoxFit.cover),
+          ),
         ),
+        const SizedBox(height: 16),
       ],
     );
   }

@@ -55,40 +55,41 @@ class CompatibilityTab extends StatelessWidget {
         isComedogenic;
   }
 
-List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
+  List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
     final warnings = <Map<String, dynamic>>[];
 
-     if (ingredient['Comodogenic'] == true) {
-    warnings.add({
-      'text': 'Comedogenic: May clog pores',
-      'color': Colors.purple,  // Purple color
-      'icon': Icons.face,      // Face icon
-    });
-  }
+    if (ingredient['Comodogenic'] == true) {
+      warnings.add({
+        'text': 'Comedogenic: May clog pores',
+        'color': Colors.purple, // Purple color
+        'icon': Icons.face, // Face icon
+      });
+    }
 
-   // Allergy warnings
-  final allergies = ingredient['Allergies_Immunotoxicity']?.toString().toLowerCase() ?? '';
-  if (allergies.contains('high') ||
-      allergies.contains('moderate')) {
-    final isHigh = allergies.contains('high');
-    warnings.add({
-      'text': 'Allergy risk: ${ingredient['Allergies_Immunotoxicity']?.toString().toUpperCase() ?? ''}',
-      'color': isHigh ? Colors.red : Colors.orange,
-      'icon': isHigh ? Icons.dangerous : Icons.warning,
-    });
-  }
+    // Allergy warnings
+    final allergies =
+        ingredient['Allergies_Immunotoxicity']?.toString().toLowerCase() ?? '';
+    if (allergies.contains('high') || allergies.contains('moderate')) {
+      final isHigh = allergies.contains('high');
+      warnings.add({
+        'text':
+            'Allergy risk: ${ingredient['Allergies_Immunotoxicity']?.toString().toUpperCase() ?? ''}',
+        'color': isHigh ? Colors.red : Colors.orange,
+        'icon': isHigh ? Icons.dangerous : Icons.warning,
+      });
+    }
 
-  // Irritation warnings
-  final irritation = ingredient['Irritation']?.toString().toLowerCase() ?? '';
-  if (irritation.contains('high') ||
-      irritation.contains('moderate')) {
-    final isHigh = irritation.contains('high');
-    warnings.add({
-      'text': 'Irritation risk: ${ingredient['Irritation']?.toString().toUpperCase() ?? ''}',
-      'color': isHigh ? Colors.red : Colors.orange,
-      'icon': isHigh ? Icons.dangerous : Icons.warning,
-    });
-  }
+    // Irritation warnings
+    final irritation = ingredient['Irritation']?.toString().toLowerCase() ?? '';
+    if (irritation.contains('high') || irritation.contains('moderate')) {
+      final isHigh = irritation.contains('high');
+      warnings.add({
+        'text':
+            'Irritation risk: ${ingredient['Irritation']?.toString().toUpperCase() ?? ''}',
+        'color': isHigh ? Colors.red : Colors.orange,
+        'icon': isHigh ? Icons.dangerous : Icons.warning,
+      });
+    }
 
     return warnings;
   }
@@ -97,7 +98,7 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
   Widget build(BuildContext context) {
     // Use theme colors
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -124,60 +125,86 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
     );
   }
 
-  Widget _buildSafetyTab(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-        Column(
-          children: [
-            Text(
-              productName,
-              style: const TextStyle(
-                fontSize: 22, 
-                fontWeight: FontWeight.bold
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              brand,
-              style: TextStyle(
-                fontSize: 16, 
-                color: Colors.grey[600]
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-        
-          Center(
-            child: SizedBox(
-              width: double.infinity,
-              height: 300,
-              child:
-                  imageFile != null
-                      ? Image.file(imageFile!, fit: BoxFit.contain)
-                      : (imageUrl?.isNotEmpty ?? false)
-                      ? Image.network(imageUrl!, fit: BoxFit.contain)
-                      : Image.asset(
-                        'assets/placeholder.png',
-                        fit: BoxFit.contain,
-                      ),
-            ),
-          ),
-          const SizedBox(height: 10),
+  // product_analysis.dart
 
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            child: Image.asset(
-              'assets/SafetyScale.png',
-              height: 50,
-              width: double.infinity,
-            ),
+Widget _buildSafetyTab(BuildContext context) {
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      // Keep this as start if you want ingredient lists left-aligned below
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // *** WRAP THE HEADER ELEMENTS IN A CENTER WIDGET ***
+        Center(
+          child: Column(
+            // Make this inner column center its children too
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                productName,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center, // Ensure text itself centers if it wraps
+              ),
+              const SizedBox(height: 4),
+              Text(
+                brand,
+                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                textAlign: TextAlign.center, // Ensure text itself centers
+              ),
+              const SizedBox(height: 16),
+
+              // --- Your existing Image Loading Logic ---
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  height: 200, // Or use the helper function's size
+                  width: 200,
+                  // Using your provided direct Image logic:
+                  child: (imageUrl != null && imageUrl!.isNotEmpty)
+                      ? Image.network(
+                          imageUrl!,
+                          fit: BoxFit.cover,
+                          // Add loadingBuilder for better UX
+                          loadingBuilder: (context, child, loadingProgress) {
+                             if (loadingProgress == null) return child;
+                             return Center(child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                                strokeWidth: 2.0,
+                             ));
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                             print("Error loading network image in SafetyTab: $error");
+                             return Image.asset('assets/placeholder.png', fit: BoxFit.cover);
+                          }
+                        )
+                      : imageFile != null
+                          ? Image.file(
+                              imageFile!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                print("Error loading file image in SafetyTab: $error");
+                                return Image.asset('assets/placeholder.png', fit: BoxFit.cover);
+                              }
+                            )
+                          : Image.asset(
+                              'assets/placeholder.png',
+                              fit: BoxFit.cover,
+                            ),
+                  // Alternatively, call the helper function if you created one:
+                  // child: _buildProductImageWidget(),
+                ),
+              ),
+              // SizedBox below image is already outside the ClipRRect/SizedBox, which is correct.
+              // const SizedBox(height: 16), // This SizedBox was inside the Column in your code, keep it if desired spacing
+            ],
           ),
+        ),
+        // *** END CENTER WRAPPER ***
           const SizedBox(height: 10),
 
           if (averageScore != null)
@@ -269,43 +296,53 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
                               ),
                             ),
                           ),
-                         
 
                           // *** MODIFIED: Title uses a Column ***
-                        title: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start, // Align items left
-                          mainAxisSize: MainAxisSize.min, // Take only needed vertical space
-                          children: [
-                            // Conditionally display the chip FIRST
-                            if (isComedogenic)
-                              Padding(
-                                // Add bottom padding if chip is shown
-                                padding: const EdgeInsets.only(bottom: 4.0),
-                                child: Chip(
-                                  label: const Text('Comedogenic'),
-                                  labelStyle: const TextStyle(fontSize: 10, color: Colors.white),
-                                  backgroundColor: Colors.purple.withOpacity(0.85),
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  visualDensity: VisualDensity.compact,
-                                  side: BorderSide.none,
+                          title: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start, // Align items left
+                            mainAxisSize:
+                                MainAxisSize
+                                    .min, // Take only needed vertical space
+                            children: [
+                              // Conditionally display the chip FIRST
+                              if (isComedogenic)
+                                Padding(
+                                  // Add bottom padding if chip is shown
+                                  padding: const EdgeInsets.only(bottom: 4.0),
+                                  child: Chip(
+                                    label: const Text('Comedogenic'),
+                                    labelStyle: const TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.white,
+                                    ),
+                                    backgroundColor: Colors.purple.withOpacity(
+                                      0.85,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 0,
+                                    ),
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    visualDensity: VisualDensity.compact,
+                                    side: BorderSide.none,
+                                  ),
+                                ),
+
+                              // Ingredient Name Text SECOND
+                              Text(
+                                ingredient['Ingredient_Name'] ??
+                                    "Not Specified",
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
+                            ],
+                          ),
 
-                            // Ingredient Name Text SECOND
-                            Text(
-                              ingredient['Ingredient_Name'] ?? "Not Specified",
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                              ),
-                               
-                            ),
-                          ],
-                        ),
-                        // *** END MODIFIED Title ***
-
-                        
+                          // *** END MODIFIED Title ***
                           subtitle:
                               similarityScore < 1.0
                                   ? Column(
@@ -466,7 +503,8 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
           _buildProductHeader(),
           const SizedBox(height: 20),
 
-          if (skinProfile.userSkinTypeId == null || skinProfile.userSensitivityLevel == null)
+          if (skinProfile.userSkinTypeId == null ||
+              skinProfile.userSensitivityLevel == null)
             _buildProfileSetupPrompt(context)
           else if (isLoadingCompatibility)
             const CircularProgressIndicator()
@@ -532,66 +570,55 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
 
     return Column(
       // *** ADD THIS LINE ***
-      crossAxisAlignment: CrossAxisAlignment.center, // Center children horizontally
+      crossAxisAlignment:
+          CrossAxisAlignment.center, // Center children horizontally
       // *********************
       children: [
         Text(
           productName,
           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center, // Keep this for multi-line text centering
+          textAlign:
+              TextAlign.center, // Keep this for multi-line text centering
         ),
         const SizedBox(height: 8),
         Text(
           brand,
           style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-          textAlign: TextAlign.center, // Keep this for multi-line text centering
+          textAlign:
+              TextAlign.center, // Keep this for multi-line text centering
         ),
         const SizedBox(height: 16),
-        // Keep the image part as is
+
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: imageFile != null
-              ? Image.file(
-                  imageFile!,
-                  height: 180,
-                  width: 180,
-                  fit: BoxFit.cover,
-                  // Add error builder for robustness
-                   errorBuilder: (context, error, stackTrace) => Container(
-                      height: 180, width: 180, color: Colors.grey[200],
-                      child: const Icon(Icons.broken_image, color: Colors.grey, size: 40)
-                    ),
-                )
-              : (imageUrl?.isNotEmpty ?? false)
-                  ? Image.network(
+          child: SizedBox(
+            height: 200,
+            width: 200,
+            child:
+                (imageUrl != null && imageUrl!.isNotEmpty)
+                    ? Image.network(
                       imageUrl!,
-                      height: 180,
-                      width: 180,
                       fit: BoxFit.cover,
-                      // Add loading and error builders for network images
-                       loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                             height: 180, width: 180, color: Colors.grey[200],
-                             child: Center(child: CircularProgressIndicator(
-                               value: loadingProgress.expectedTotalBytes != null
-                                   ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                   : null,
-                             ))
-                           );
-                       },
-                       errorBuilder: (context, error, stackTrace) => Container(
-                         height: 180, width: 180, color: Colors.grey[200],
-                         child: const Icon(Icons.error_outline, color: Colors.red, size: 40)
-                       ),
+                      errorBuilder:
+                          (context, error, stackTrace) => Image.asset(
+                            'assets/placeholder.png',
+                            fit: BoxFit.cover,
+                          ),
                     )
-                  : Image.asset(
-                      'assets/placeholder.png', // Ensure this asset exists
-                      height: 180,
-                      width: 180,
+                    : imageFile != null
+                    ? Image.file(
+                      imageFile!,
                       fit: BoxFit.cover,
-                    ),
+                      errorBuilder:
+                          (context, error, stackTrace) => Image.asset(
+                            'assets/placeholder.png',
+                            fit: BoxFit.cover,
+                          ),
+                    )
+                    : Image.asset('assets/placeholder.png', fit: BoxFit.cover),
+          ),
         ),
+        const SizedBox(height: 16),
       ],
     );
   }
@@ -606,20 +633,20 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
         ),
         const SizedBox(height: 20),
         ElevatedButton(
-           onPressed: () {
-          if (onProfileRequested != null) {
-            onProfileRequested!();
-            // Add this to ensure the profile screen is shown immediately
-            Navigator.of(context, rootNavigator: true).pop();
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Navigation not available')),
-            );
-          }
-        },        
-            style: ElevatedButton.styleFrom(
-            backgroundColor:  Colors.brown[900],
-            
+          onPressed: () {
+            if (onProfileRequested != null) {
+              onProfileRequested!();
+              // Add this to ensure the profile screen is shown immediately
+              Navigator.of(context, rootNavigator: true).pop();
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Navigation not available')),
+              );
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.brown[900],
+
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
           child: const Text(
@@ -631,14 +658,6 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
     );
   }
 
-   // product_analysis.dart
-
-  // ... (other parts of the CompatibilityTab class) ...
-
-  // product_analysis.dart
-
-// ... (imports and other parts of the class)
-
   Widget _buildScoreSection(BuildContext context) {
     final skinProfile = Provider.of<SkinProfileProvider>(
       context,
@@ -646,38 +665,38 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
     );
 
     if (skinProfile.userSkinTypeId == null) {
-        // ... (existing profile setup prompt logic) ...
-         return Column(
-            children: [
-                const Text(
-                    "Please set your skin profile first.",
-                    style: TextStyle(fontSize: 16, color: Colors.orange),
-                    textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 10),
-                 ElevatedButton(
-                    onPressed: onProfileRequested,
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.brown[900],
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    ),
-                    child: const Text(
-                        "Set Skin Profile",
-                        style: TextStyle(color: Colors.white),
-                    ),
-                 ),
-            ]
-        );
+      // ... (existing profile setup prompt logic) ...
+      return Column(
+        children: [
+          const Text(
+            "Please set your skin profile first.",
+            style: TextStyle(fontSize: 16, color: Colors.orange),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton(
+            onPressed: onProfileRequested,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.brown[900],
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: const Text(
+              "Set Skin Profile",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      );
     }
 
     if (compatibilityScore == null) {
-        // ... (existing score not available logic) ...
-        return const Center(
-            child: Text(
-                "Compatibility score not available yet.",
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-        );
+      // ... (existing score not available logic) ...
+      return const Center(
+        child: Text(
+          "Compatibility score not available yet.",
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
     }
 
     final scoreColor =
@@ -689,14 +708,17 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
 
     // Get descriptive names for profile items
     final skinTypeName = getSkinTypeName(skinProfile.userSkinTypeId!);
-    final sensitivityLevel = skinProfile.userSensitivityLevel ?? 'Unknown'; // Handle potential null from provider
+    final sensitivityLevel =
+        skinProfile.userSensitivityLevel ??
+        'Unknown'; // Handle potential null from provider
 
     // --- MODIFIED: Handle empty concern list ---
     final String concernText;
     if (skinProfile.userConcernIds.isEmpty) {
-        concernText = "no specific concerns selected"; // Text for 'None' case
+      concernText = "no specific concerns selected"; // Text for 'None' case
     } else {
-        concernText = "concerns of ${skinProfile.userConcernIds.map((id) => getConcernName(id)).join(", ")}"; // Original text
+      concernText =
+          "concerns of ${skinProfile.userConcernIds.map((id) => getConcernName(id)).join(", ")}"; // Original text
     }
     // --- END MODIFIED ---
 
@@ -717,78 +739,78 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
 
         // --- The Score Display Container (No changes needed here) ---
         Container(
-           // ... (rest of the score container code) ...
-           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-           decoration: BoxDecoration(
-             color: scoreColor.withOpacity(0.1),
-             borderRadius: BorderRadius.circular(12),
-             border: Border.all(color: scoreColor.withOpacity(0.3), width: 1),
-           ),
-           child: Row(
-             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-             children: [
-               Expanded(
-                 child: Column(
-                   crossAxisAlignment: CrossAxisAlignment.start,
-                   children: [
-                     Text(
-                       "COMPATIBILITY",
-                       style: TextStyle(
-                         fontSize: 12,
-                         color: Colors.grey[600],
-                         fontWeight: FontWeight.bold,
-                         letterSpacing: 0.5,
-                       ),
-                     ),
-                     const SizedBox(height: 4),
-                     Text(
-                       recommendationStatus,
-                       style: TextStyle(
-                         fontSize: 16,
-                         fontWeight: FontWeight.bold,
-                         color: scoreColor,
-                       ),
-                       maxLines: 2,
-                       overflow: TextOverflow.ellipsis,
-                     ),
-                   ],
-                 ),
-               ),
-               Container(
-                 padding: const EdgeInsets.symmetric(
-                   horizontal: 12,
-                   vertical: 8,
-                 ),
-                 decoration: BoxDecoration(
-                   color: scoreColor.withOpacity(0.2),
-                   borderRadius: BorderRadius.circular(20),
-                 ),
-                 child: Row(
-                   mainAxisSize: MainAxisSize.min,
-                   children: [
-                     Text(
-                       "${compatibilityScore!.toStringAsFixed(1)}%",
-                       style: TextStyle(
-                         fontSize: 18,
-                         fontWeight: FontWeight.bold,
-                         color: scoreColor,
-                       ),
-                     ),
-                     const SizedBox(width: 4),
-                     Icon(
-                       compatibilityScore! >= 65
-                           ? Icons.check_circle
-                           : compatibilityScore! >= 40
-                           ? Icons.warning_amber_rounded
-                           : Icons.error_outline,
-                       size: 18,
-                       color: scoreColor,
-                     ),
-                   ],
-                 ),
-               ),
-             ],
-           ),
+          // ... (rest of the score container code) ...
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: scoreColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: scoreColor.withOpacity(0.3), width: 1),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "COMPATIBILITY",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      recommendationStatus,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: scoreColor,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: scoreColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      "${compatibilityScore!.toStringAsFixed(1)}%",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: scoreColor,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      compatibilityScore! >= 65
+                          ? Icons.check_circle
+                          : compatibilityScore! >= 40
+                          ? Icons.warning_amber_rounded
+                          : Icons.error_outline,
+                      size: 18,
+                      color: scoreColor,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -1108,7 +1130,7 @@ List<Map<String, dynamic>> _getWarnings(Map<String, dynamic> ingredient) {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                warning['text'],  // Convert here
+                                warning['text'], // Convert here
                                 style: const TextStyle(
                                   fontSize: 14,
                                   color: Colors.black87,

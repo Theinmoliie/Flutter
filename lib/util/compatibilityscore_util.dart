@@ -90,8 +90,8 @@ double calculateCompatibilityScore({
     if (isComedogenic) {
         // ... (logic to calculate penalty based on acne/oily/combo etc.) ...
          double penalty;
-         if (isAcneProne) { penalty = -1.5; print('   - Reason: Acne Prone'); }
-         else if (userSkinType == "Combination") { penalty = -1.0; print('   - Reason: Combination Skin Type'); }
+         if (isAcneProne) { penalty = -2.0 ; print('   - Reason: Acne Prone'); }
+         else if (userSkinType == "Combination") { penalty = -1.5; print('   - Reason: Combination Skin Type'); }
          else if (userSkinType == "Normal") { penalty = -0.75; print('   - Reason: Normal Skin Type'); }
          else { penalty = -0.5; print('   - Reason: Other Skin Type'); }
          comedogenicityPenalty += penalty;

@@ -1,65 +1,62 @@
 // lib/services/tflite_service.dart
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:flutter/services.dart'; // For rootBundle
+import 'dart:ui'; // Required for Rect
+import 'package:flutter/foundation.dart'; // for kDebugMode
+import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
+// *** Using the original tflite_flutter package import ***
 import 'package:tflite_flutter/tflite_flutter.dart';
-
+import 'dart:math'; // For clamp
 
 class TfliteService {
-  Interpreter? _interpreter;
-  List<String>? _labels;
-  bool _isModelLoaded = false;
-  static const String _modelPath = 'assets/models/skin_type_model.tflite';
-  static const String _labelPath = 'assets/labels/skin_type_labels.txt';
-  static const int _inputSize = 224; // From your YOLOv8 script
+  Interpreter? _skinInterpreter;
+  List<String>? _skinLabels;
+  bool _isSkinModelLoaded = false;
+  static const String _skinModelPath = 'assets/models/skin_type_model.tflite';
+  static const String _skinLabelPath = 'assets/labels/skin_type_labels.txt';
+  static const int _skinInputSize = 224;
 
   TfliteService() {
-    // Consider loading the model eagerly or lazily
-    // Eager loading (on instantiation):
-    loadModel();
+    _loadSkinModel();
   }
 
-  Future<void> loadModel() async {
-    if (_isModelLoaded) return; // Prevent reloading
-
+  Future<void> _loadSkinModel() async {
+    if (_isSkinModelLoaded) return;
     try {
-      // Load labels first
-      final labelsData = await rootBundle.loadString(_labelPath);
-      _labels = labelsData.split('\n').map((label) => label.trim()).where((label) => label.isNotEmpty).toList();
-      if (_labels == null || _labels!.isEmpty) {
-         throw Exception("Could not load or parse labels from $_labelPath");
+      final labelsData = await rootBundle.loadString(_skinLabelPath);
+      _skinLabels = labelsData.split('\n').map((label) => label.trim()).where((label) => label.isNotEmpty).toList();
+      if (_skinLabels == null || _skinLabels!.isEmpty) {
+        throw Exception("Could not load or parse skin labels from $_skinLabelPath");
       }
-       print("Labels loaded: $_labels"); // Debug print
+      print("[TfliteService] Skin Labels loaded: $_skinLabels");
 
-      // Load TFLite model
-      _interpreter = await Interpreter.fromAsset(
-        _modelPath,
-        // Optional: configure options like GPU delegation or number of threads
-        // options: InterpreterOptions()..addDelegate(GpuDelegateV2()),
-      );
+      _skinInterpreter = await Interpreter.fromAsset(_skinModelPath);
 
-      // Check model input/output details (optional but helpful for debugging)
-      var inputDetails = _interpreter!.getInputTensor(0);
-      var outputDetails = _interpreter!.getOutputTensor(0);
-      print('Input details: ${inputDetails.shape}, ${inputDetails.type}');
-      print('Output details: ${outputDetails.shape}, ${outputDetails.type}');
+      var inputDetails = _skinInterpreter!.getInputTensor(0);
+      var outputDetails = _skinInterpreter!.getOutputTensor(0);
+      print('[TFLiteService] Skin Model Input: ${inputDetails.shape}, ${inputDetails.type}');
+      print('[TFLiteService] Skin Model Output: ${outputDetails.shape}, ${outputDetails.type}');
 
-      _isModelLoaded = true;
-      print("TFLite model loaded successfully.");
+      if (outputDetails.shape.length != 2 || outputDetails.shape[1] != _skinLabels!.length) {
+         print("Warning: Model output shape ${outputDetails.shape} doesn't match labels count (${_skinLabels!.length})");
+      }
+
+      _isSkinModelLoaded = true;
+      print("[TfliteService] Skin Type TFLite model (using tflite_flutter) loaded successfully.");
+
     } catch (e) {
-      print("Error loading TFLite model or labels: $e");
-      _isModelLoaded = false;
-      // Consider re-throwing or returning an error status
+      print("[TfliteService] Error loading Skin Type TFLite model: $e");
+      _isSkinModelLoaded = false;
     }
   }
 
-  Future<Map<String, dynamic>> predictImage(File imageFile) async {
-    if (!_isModelLoaded || _interpreter == null || _labels == null) {
-      print("Model or labels not loaded. Attempting to load...");
-      await loadModel(); // Attempt to load if not already loaded
-      if (!_isModelLoaded || _interpreter == null || _labels == null) {
-        return {'success': false, 'error': 'Model or labels not loaded'};
+  Future<Map<String, dynamic>> predictImage(File imageFile, Rect faceBoundingBox) async {
+    if (!_isSkinModelLoaded || _skinInterpreter == null || _skinLabels == null) {
+      print("[TfliteService] Skin model not loaded. Attempting to load...");
+      await _loadSkinModel();
+      if (!_isSkinModelLoaded || _skinInterpreter == null || _skinLabels == null) {
+        return {'success': false, 'error': 'Skin Model failed to load'};
       }
     }
 
@@ -70,54 +67,59 @@ class TfliteService {
       if (originalImage == null) {
         return {'success': false, 'error': 'Could not decode image'};
       }
+      if (kDebugMode) {
+          print("[TfliteService] Original image size: ${originalImage.width}x${originalImage.height}");
+          print("[TfliteService] Received BoundingBox: $faceBoundingBox");
+      }
 
-      // 2. Resize Image
-      img.Image resizedImage = img.copyResize(
-        originalImage,
-        width: _inputSize,
-        height: _inputSize,
-      );
+      // 2. Crop the Face
+      int cropX = faceBoundingBox.left.toInt().clamp(0, originalImage.width - 1);
+      int cropY = faceBoundingBox.top.toInt().clamp(0, originalImage.height - 1);
+      int cropWidth = faceBoundingBox.width.toInt().clamp(1, originalImage.width - cropX);
+      int cropHeight = faceBoundingBox.height.toInt().clamp(1, originalImage.height - cropY);
 
-      // 3. Normalize and Convert to Float32List (Input Tensor)
-      // IMPORTANT: YOLOv8 typically normalizes to [0, 1] by dividing by 255.
-      // TFLite model usually expects shape [1, height, width, 3]
-      var inputBytes = Float32List(1 * _inputSize * _inputSize * 3);
+       if (cropWidth <= 0 || cropHeight <= 0) {
+         print("[TfliteService] Error: Invalid crop dimensions after clamping. Box: $faceBoundingBox, Image: ${originalImage.width}x${originalImage.height}");
+         return {'success': false, 'error': 'Invalid face crop area calculated'};
+       } else if (kDebugMode) {
+          print("[TfliteService] Cropping to: x=$cropX, y=$cropY, w=$cropWidth, h=$cropHeight");
+       }
+
+      img.Image croppedFace = img.copyCrop( originalImage, x: cropX, y: cropY, width: cropWidth, height: cropHeight, );
+
+      // 3. Resize the CROPPED face
+      img.Image resizedImage = img.copyResize( croppedFace, width: _skinInputSize, height: _skinInputSize, interpolation: img.Interpolation.average, );
+      if (kDebugMode) print("[TfliteService] Resized cropped image to: ${resizedImage.width}x${resizedImage.height}");
+
+      // 4. Normalize and Convert Input Tensor [0, 1]
+      var inputBytes = Float32List(1 * _skinInputSize * _skinInputSize * 3);
       int pixelIndex = 0;
-      for (int y = 0; y < _inputSize; y++) {
-        for (int x = 0; x < _inputSize; x++) {
-          img.Pixel pixel = resizedImage.getPixel(x, y);
-          // Normalize to [0, 1]
+      for (int y = 0; y < _skinInputSize; y++) {
+        for (int x = 0; x < _skinInputSize; x++) {
+          img.Pixel pixel = resizedImage.getPixelSafe(x, y);
           inputBytes[pixelIndex++] = pixel.r / 255.0;
           inputBytes[pixelIndex++] = pixel.g / 255.0;
           inputBytes[pixelIndex++] = pixel.b / 255.0;
         }
       }
+      final input = inputBytes.reshape([1, _skinInputSize, _skinInputSize, 3]);
 
-      // Reshape to [1, 224, 224, 3] - Note: tflite_flutter handles the outer batch dim implicitly usually
-      // But the inputBytes list itself needs to represent the HWC format correctly flattened.
-      // The interpreter's input tensor shape should confirm this. Let's assume [1, 224, 224, 3].
-      final input = inputBytes.reshape([1, _inputSize, _inputSize, 3]);
-
-      // 4. Prepare Output Tensor
-      // Shape should be [1, num_classes] (e.g., [1, 4])
-      final outputShape = _interpreter!.getOutputTensor(0).shape;
-      final numClasses = outputShape[1]; // Assuming [1, num_classes]
-      if (numClasses != _labels!.length) {
-         print("Warning: Model output classes (${outputShape[1]}) != Label file classes (${_labels!.length})");
-         // You might want to throw an error here if the mismatch is critical
+      // 5. Prepare Output Tensor
+      final outputShape = _skinInterpreter!.getOutputTensor(0).shape;
+      final numClasses = outputShape[1];
+      if (numClasses != _skinLabels!.length) {
+         print("[TFLiteService] Error: Model output classes (${outputShape[1]}) != Label file classes (${_skinLabels!.length})");
+         return {'success': false, 'error': 'Model output/label mismatch'};
       }
-      // Output is typically Float32 probabilities
       final output = List.filled(1 * numClasses, 0.0).reshape([1, numClasses]);
 
+      // 6. Run Inference
+      if (kDebugMode) print("[TFLiteService] Running skin type inference...");
+      _skinInterpreter!.run(input, output);
+      if (kDebugMode) print("[TFLiteService] Inference complete.");
 
-      // 5. Run Inference
-      _interpreter!.run(input, output);
-
-      // 6. Post-process Output
-      // Output[0] contains the list of probabilities for each class
+      // 7. Post-process Output
       List<double> probabilities = List<double>.from(output[0]);
-
-      // Find the index with the highest probability
       double maxProb = 0.0;
       int maxIndex = -1;
       for (int i = 0; i < probabilities.length; i++) {
@@ -127,30 +129,31 @@ class TfliteService {
         }
       }
 
-       print("Output Probabilities: $probabilities"); // Debug print
-       print("Max Index: $maxIndex, Max Prob: $maxProb"); // Debug print
+      if (kDebugMode) {
+        print("[TFLiteService] Output Probabilities: $probabilities");
+        print("[TFLiteService] Max Index: $maxIndex, Max Prob: $maxProb");
+      }
 
 
-      if (maxIndex != -1 && maxIndex < _labels!.length) {
-        String predictedLabel = _labels![maxIndex];
-        return {
-          'success': true,
-          'skin_type': predictedLabel,
-          'confidence': maxProb,
-        };
+      if (maxIndex != -1 && maxIndex < _skinLabels!.length) {
+        String predictedLabel = _skinLabels![maxIndex];
+        print("[TFLiteService] Predicted Label: $predictedLabel");
+        return { 'success': true, 'skin_type': predictedLabel, 'confidence': maxProb, };
       } else {
+        print("[TFLiteService] Error: Could not determine prediction from probabilities.");
         return {'success': false, 'error': 'Could not determine prediction'};
       }
+
     } catch (e, stackTrace) {
-      print("Error during TFLite prediction: $e");
-      print(stackTrace); // Print stack trace for debugging
+      print("[TFLiteService] Error during TFLite prediction: $e");
+      print(stackTrace);
       return {'success': false, 'error': 'Prediction error: $e'};
     }
   }
 
   void dispose() {
-    _interpreter?.close();
-    _isModelLoaded = false;
-    print("TFLite interpreter closed.");
+    _skinInterpreter?.close();
+    _isSkinModelLoaded = false;
+    print("[TfliteService] TFLite skin interpreter closed.");
   }
 }

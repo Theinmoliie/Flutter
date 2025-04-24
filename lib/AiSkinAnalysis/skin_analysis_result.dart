@@ -140,6 +140,10 @@ class AnalysisPage extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 20),
+
+
+        const SizedBox(height: 24), // Increase spacing before button
+
          // Done Button - Now context is available
          ElevatedButton(
             onPressed: () {

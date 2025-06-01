@@ -9,7 +9,7 @@ class SkinProfileProvider extends ChangeNotifier {
   List<int> _userConcernIds = [];
 
   // --- MODIFIED: Make Sensitivity Level nullable ---
-  String? _userSensitivityLevel; // Initialize as null (no default)
+  String? _userSensitivity; // Initialize as null (no default)
   // ---------------------------------------------
 
   // Keep existing getters
@@ -19,7 +19,7 @@ class SkinProfileProvider extends ChangeNotifier {
   List<int> get userConcernIds => _userConcernIds;
 
   // --- MODIFIED: Getter for nullable Sensitivity Level ---
-  String? get userSensitivityLevel => _userSensitivityLevel;
+  String? get userSensitivity => _userSensitivity;
   // ---------------------------------------------------
 
   // --- MODIFIED: Update updateSkinProfile method parameter ---
@@ -28,13 +28,13 @@ class SkinProfileProvider extends ChangeNotifier {
     int? skinTypeId, // Allow null
     required List<String> concerns,
     required List<int> concernIds,
-    required String? sensitivityLevel, // Allow null sensitivity level parameter
+    required String? sensitivity, // Allow null sensitivity level parameter
   }) {
     _userSkinType = skinType;
     _userSkinTypeId = skinTypeId;
     _userConcerns = concerns;
     _userConcernIds = concernIds;
-    _userSensitivityLevel = sensitivityLevel; // Update sensitivity level
+    _userSensitivity = sensitivity; // Update sensitivity level
     notifyListeners(); // Notify widgets about the change
   }
   // ------------------------------------------------------
@@ -45,7 +45,7 @@ class SkinProfileProvider extends ChangeNotifier {
     _userSkinTypeId = null;
     _userConcerns = [];
     _userConcernIds = [];
-    _userSensitivityLevel = null; // Reset to null (no selection) on clear
+    _userSensitivity = null; // Reset to null (no selection) on clear
     notifyListeners();
   }
   // ------------------------------------

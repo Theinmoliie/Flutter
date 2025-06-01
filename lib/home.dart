@@ -328,7 +328,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                           productName: product['Product_Name'],
                                           brand: product['Brand'],
                                           imageUrl: product['Image_Url'] ?? '',
-                                          onProfileRequested: widget.onSwitchToProfile,
                                         ),
                                       ),
                                     );

@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'home.dart';
- import 'UserProfile/multi_screen.dart';
+import 'UserProfile/multi_screen.dart';
 import 'AiSkinAnalysis/selfie.dart'; // Import the selfie screen
+import 'routine_display_screen.dart'; // <-- IMPORT THE ROUTINE DISPLAY SCREEN
 
 class MainScreen extends StatefulWidget {
-  // Add constructor parameter
   final bool showSuccessDialog;
 
   const MainScreen({
     Key? key,
-    this.showSuccessDialog = false, // Default to false
+    this.showSuccessDialog = false,
   }) : super(key: key);
 
   @override
@@ -17,77 +17,61 @@ class MainScreen extends StatefulWidget {
 }
 
 class MainScreenState extends State<MainScreen> {
-
   @override
   void initState() {
     super.initState();
-    // Check the flag after the first frame is built
     if (widget.showSuccessDialog) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showSignUpSuccessSnackbar();
-();
+        _showSignUpSuccessSnackbar();
       });
     }
   }
 
-
-  // Method to show the dialog
-   void _showSignUpSuccessSnackbar() {
-     // Ensure context is still valid and has a Scaffold ancestor
+  void _showSignUpSuccessSnackbar() {
     if (!mounted || !ScaffoldMessenger.maybeOf(context)!.mounted) return;
-
-    // Use ScaffoldMessenger to show a SnackBar
     ScaffoldMessenger.of(context).showSnackBar(
-       const SnackBar(
+      const SnackBar(
         content: Text("Account successfully created"),
-        duration: Duration(seconds: 4), // Adjust duration as needed
-        behavior: SnackBarBehavior.floating, // Optional: Makes it float
-       ),
+        duration: Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
-   }
+  }
 
-
-  
-  int _selectedIndex = 0;
+  int _selectedIndex = 0; // Default to Home
 
   void _onProfileSaved(Map<String, dynamic> profile) {
     print("Profile saved in MainScreen: $profile");
-    _onItemTapped(0); // Switch back to Home tab after saving
+    // Optional: Navigate to the Routine tab after saving profile
+    // _onItemTapped(2); // Assuming Routine is now at index 2
+    // Or stay on profile or go to home
+    _onItemTapped(0); // Switch back to Home tab
   }
 
-  // --- Define _screens using a method or directly in build ---
-  // Using a getter is fine if the dependencies don't change often
   List<Widget> get _screens => [
         HomeScreen(
-          onSwitchToProfile: () => _onItemTapped(1),
+          onSwitchToProfile: () => _onItemTapped(1), // Profile is at index 1
         ),
         MultiPageSkinProfileScreen(
           onProfileSaved: _onProfileSaved,
-          onBackPressed: () => _onItemTapped(0), // <-- PASS THE CALLBACK HERE
+          onBackPressed: () => _onItemTapped(0), // Home is at index 0
         ),
-        Container(), // Placeholder for camera screen
+        const RoutineDisplayScreen(), // <-- ADDED: Routine Screen is at index 2
+        // Placeholder for camera - camera is handled by _openSelfieScreen
+        // If you add the camera as a permanent tab, it would go here,
+        // but your current logic pushes it as a separate route.
       ];
-  // --- Or define inside build if needed ---
-  /*
-  List<Widget> _buildScreens() => [
-        HomeScreen(
-          onSwitchToProfile: () => _onItemTapped(1),
-        ),
-        SkinProfileScreen(
-          onProfileSaved: _onProfileSaved,
-          onBackPressed: () => _onItemTapped(0), // <-- PASS THE CALLBACK HERE
-        ),
-        Container(), // Placeholder for camera screen
-      ];
-  */
-
 
   void _onItemTapped(int index) {
-    if (index == 2) {
-      // Handle camera separately - don't change _selectedIndex here
+    // --- ADJUST INDEX FOR CAMERA ---
+    // Your camera is currently the 3rd *visual* item in BottomNavBar (index 2 if 0-indexed)
+    // But it's not part of the `_screens` that `IndexedStack` manages directly.
+    // Let's assume the new layout is: Home (0), Profile (1), Routine (2), Selfie (3rd visual item)
+
+    if (index == 3) { // If the "Selfie" icon (now visually the 4th item, index 3) is tapped
       _openSelfieScreen();
-    } else if (_selectedIndex != index) {
-      // Only update state if the index is different AND it's not the camera tab
+    } else if (_selectedIndex != index && index < _screens.length) {
+      // Only update state if the index is different AND it's a valid screen index
       setState(() {
         _selectedIndex = index;
       });
@@ -95,63 +79,57 @@ class MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _openSelfieScreen() async {
-     // Keep track of the index *before* opening the camera
-    int previousIndex = _selectedIndex;
+    // int previousIndex = _selectedIndex; // Keep track if needed
 
     final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => CameraPage()),
     );
 
-    // --- Optional: Handle returning from camera ---
-    // If you want to return to the *previous* tab after closing the camera:
-    // setState(() {
-    //   _selectedIndex = previousIndex;
-    // });
-    // Or if you ALWAYS want to return to Home (index 0):
-     if (_selectedIndex != 0) {
-       setState(() {
-         _selectedIndex = 0;
-       });
-     }
+    // After returning from camera, you might want to default to a specific tab
+    // For example, always go back to Home or the previously selected tab
+    if (_selectedIndex != 0) { // Example: always go back to Home if not already there
+      // This ensures if camera was opened from Profile or Routine, it returns to Home
+      // Or, you could use 'previousIndex' to go back to where they were.
+      // For simplicity, let's default to Home to avoid confusion with the selectedIndex
+      // if the camera isn't a "permanent" tab in the IndexedStack.
+      setState(() {
+         _selectedIndex = 0; // Or `_selectedIndex = previousIndex;`
+      });
+    }
 
-    if (result != null && result is String) { // Check type if you expect a path
+
+    if (result != null && result is String) {
       print("Captured image path: $result");
-      // You might want to navigate to a results page or update the profile
-      // For example, navigate to profile tab after capture:
-      // _onItemTapped(1);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme; // Get theme colors
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: _screens, // Use the getter
-        // children: _buildScreens(), // Or call the method
+        children: _screens,
       ),
       bottomNavigationBar: BottomNavigationBar(
-        // --- Adjust currentIndex for Camera ---
-        // When camera is pushed, the MainScreen's build method might still run.
-        // Ensure the visual indicator doesn't wrongly highlight the camera tab (index 2)
-        // while the camera screen is actually displayed via Navigator.push.
-        // Show the currently selected tab (0 or 1) as active.
-        currentIndex: _selectedIndex < 2 ? _selectedIndex : 0, // Default to Home if index is invalid
+        // Adjust currentIndex logic
+        // If camera (index 3 visually) was "selected", visually show the _selectedIndex
+        // which would be the tab underneath the camera overlay.
+        // Since camera is a pushed route, _selectedIndex should reflect the active tab in _screens.
+        currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
-          BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: "Selfie"),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"), // Index 0
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"), // Index 1
+          BottomNavigationBarItem(icon: Icon(Icons.list_alt_outlined), label: "Routine"), // Index 2 <-- NEW
+          BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: "Selfie"), // Index 3 (visual, handled by _openSelfieScreen)
         ],
-        // Optional: Styling
-        backgroundColor: Colors.white, // Or use theme color: colorScheme.surface
-        selectedItemColor: colorScheme.primary, // Color for selected icon/label
-        unselectedItemColor: Colors.grey[600], // Color for unselected items
-        type: BottomNavigationBarType.fixed, // Keep labels visible
-        // showUnselectedLabels: true, // Explicitly show unselected labels
+        backgroundColor: Colors.white,
+        selectedItemColor: colorScheme.primary,
+        unselectedItemColor: Colors.grey[600],
+        type: BottomNavigationBarType.fixed,
       ),
     );
   }

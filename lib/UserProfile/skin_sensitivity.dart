@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 // --- Page 1: Sensitivity Level ---
 class SensitivityPage extends StatelessWidget {
   final List<String> sensitivityOptions;
-  final String? selectedSensitivityLevel;
+  final String? selectedSensitivity;
   final ValueChanged<String?> onChanged;
 
   const SensitivityPage({
     required this.sensitivityOptions,
-    required this.selectedSensitivityLevel,
+    required this.selectedSensitivity,
     required this.onChanged, required ValueKey<String> key,
   });
 
@@ -21,7 +21,7 @@ class SensitivityPage extends StatelessWidget {
          crossAxisAlignment: CrossAxisAlignment.start,
          children: [
            const Text(
-              'How sensitive is your skin?',
+              'Do you consider your skin to be sensitive?',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
            ),
            const SizedBox(height: 8),
@@ -36,7 +36,7 @@ class SensitivityPage extends StatelessWidget {
                  contentPadding: EdgeInsets.zero,
                  title: Text(level, style: const TextStyle(fontSize: 16)),
                  value: level,
-                 groupValue: selectedSensitivityLevel,
+                 groupValue: selectedSensitivity,
                  onChanged: onChanged,
                  activeColor: colorScheme.primary,
                );

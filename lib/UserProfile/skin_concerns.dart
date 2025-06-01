@@ -8,9 +8,9 @@ class ConcernsPage extends StatelessWidget {
   final bool isLoading;
   final Function(int, bool?) onConcernChanged;
   final Function(bool?) onNoneChanged;
+  final int maxConcernsAllowed = 3; // Define the limit
 
   const ConcernsPage({
-    // Add super.key for good practice
     super.key,
     required this.skinConcerns,
     required this.selectedConcernIds,
@@ -18,13 +18,13 @@ class ConcernsPage extends StatelessWidget {
     required this.isLoading,
     required this.onConcernChanged,
     required this.onNoneChanged,
-    // Remove the explicit key requirement from constructor if not needed elsewhere
-    // required ValueKey<String> key,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final bool canSelectMoreConcerns = selectedConcernIds.length < maxConcernsAllowed;
+
     return SingleChildScrollView(
        padding: const EdgeInsets.all(24.0),
        child: Column(
@@ -36,7 +36,7 @@ class ConcernsPage extends StatelessWidget {
            ),
            const SizedBox(height: 8),
             Text(
-              'Select all that apply, or choose \'None\' if you don\'t have specific issues you want to address.',
+              'Select up to $maxConcernsAllowed that apply, or choose \'None\' if you don\'t have specific issues you want to address.', // Updated text
               style: TextStyle(fontSize: 15, color: Colors.grey[700]),
            ),
            const SizedBox(height: 24),
@@ -47,7 +47,6 @@ class ConcernsPage extends StatelessWidget {
            else
              Column(
                children: [
-                 // 'None' Checkbox
                  CheckboxListTile(
                    contentPadding: EdgeInsets.zero,
                    title: const Text('None', style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic)),
@@ -56,21 +55,30 @@ class ConcernsPage extends StatelessWidget {
                    activeColor: colorScheme.primary,
                    controlAffinity: ListTileControlAffinity.leading,
                  ),
-
-                 // List of Real Concerns
                  ...skinConcerns.map((concern) {
                    final int concernId = concern['concern_id'];
+                   final bool isSelected = selectedConcernIds.contains(concernId);
+                   
+                   // Disable if "None" is selected OR if max concerns are selected and this one isn't already selected.
+                   final bool isDisabled = isNoneSelected || (!isSelected && !canSelectMoreConcerns);
+
                    return CheckboxListTile(
                      contentPadding: EdgeInsets.zero,
-                     // Keep title styling for visual feedback
-                     title: Text(concern['concern'] ?? 'Unknown Concern', style: TextStyle(fontSize: 16, color: isNoneSelected ? Colors.grey : null)),
-                     // Value determines if it *looks* checked
-                     value: !isNoneSelected && selectedConcernIds.contains(concernId),
-                     // onChanged *always* calls the parent callback
-                     onChanged: (value) => onConcernChanged(concernId, value),
+                     title: Text(
+                       concern['concern'] ?? 'Unknown Concern', 
+                       style: TextStyle(
+                         fontSize: 16, 
+                         color: isDisabled && !isSelected ? Colors.grey.shade400 : (isNoneSelected ? Colors.grey : null),
+                       )
+                     ),
+                     value: !isNoneSelected && isSelected,
+                     onChanged: isDisabled 
+                        ? null // Disable checkbox if conditions are met
+                        : (value) => onConcernChanged(concernId, value),
                      activeColor: colorScheme.primary,
                      controlAffinity: ListTileControlAffinity.leading,
-              
+                     // Optionally, change tile color or add visual cue when disabled
+                     // tileColor: isDisabled ? Colors.grey.shade100 : null, 
                    );
                  }).toList(),
                ],

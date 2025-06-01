@@ -4,13 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/skin_profile_provider.dart';
-import 'skin_type.dart'; // Assuming public class SkinTypePage
-import 'sensitivity_level.dart'; // Assuming public class SensitivityPage
-import 'skin_concerns.dart'; // Assuming public class ConcernsPage
+import 'skin_type.dart'; 
+import 'skin_sensitivity.dart'; 
+import 'skin_concerns.dart'; 
 
 final supabase = Supabase.instance.client;
 
-// Main StatefulWidget holding the PageView structure
 class MultiPageSkinProfileScreen extends StatefulWidget {
   final Function(Map<String, dynamic>)? onProfileSaved;
   final VoidCallback? onBackPressed;
@@ -31,17 +30,17 @@ class _MultiPageSkinProfileScreenState
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  // --- State variables (no changes needed here) ---
   int? _selectedSkinTypeId;
   final Set<int> _selectedConcernIds = {};
   bool _isNoneConcernSelected = false;
-  String? _selectedSensitivityLevel;
-  final List<String> _sensitivityOptions = const ['Low', 'Medium', 'High'];
+  String? _selectedSensitivity;
+  final List<String> _sensitivityOptions = const ['Yes', 'No'];
   bool _isLoadingSkinTypes = true;
   bool _isLoadingConcerns = true;
   List<Map<String, dynamic>> _skinTypes = [];
   List<Map<String, dynamic>> _skinConcerns = [];
-  // --- End State variables ---
+  
+  final int _maxConcerns = 3; // Define the maximum number of concerns
 
   @override
   void initState() {
@@ -60,34 +59,32 @@ class _MultiPageSkinProfileScreenState
     super.dispose();
   }
 
-  // --- Data Fetching, Loading, Saving, Clearing (no changes needed here) ---
   Future<void> _fetchData() async {
-    /* ... */
     await Future.wait([_fetchSkinTypes(), _fetchSkinConcerns()]);
   }
 
   Future<void> _loadSavedProfile() async {
-    /* ... */
     if (!mounted) return;
     final profileProvider = Provider.of<SkinProfileProvider>(
       context,
       listen: false,
     );
     if (profileProvider.userSkinTypeId != null ||
-        profileProvider.userSensitivityLevel != null) {
+        profileProvider.userSensitivity != null) {
       if (mounted) {
         setState(() {
           _selectedSkinTypeId = profileProvider.userSkinTypeId;
           _selectedConcernIds.clear();
-          _selectedConcernIds.addAll(profileProvider.userConcernIds);
-          _selectedSensitivityLevel = profileProvider.userSensitivityLevel;
+          // Ensure loaded concerns don't exceed the max limit
+          _selectedConcernIds.addAll(profileProvider.userConcernIds.take(_maxConcerns)); 
+          _selectedSensitivity = profileProvider.userSensitivity;
           _isNoneConcernSelected =
               profileProvider.userConcernIds.isEmpty &&
               (profileProvider.userSkinTypeId != null ||
-                  profileProvider.userSensitivityLevel != null);
-          if (_selectedSensitivityLevel != null &&
-              !_sensitivityOptions.contains(_selectedSensitivityLevel)) {
-            _selectedSensitivityLevel = null;
+                  profileProvider.userSensitivity != null);
+          if (_selectedSensitivity != null &&
+              !_sensitivityOptions.contains(_selectedSensitivity)) {
+            _selectedSensitivity = null;
           }
         });
       }
@@ -101,7 +98,6 @@ class _MultiPageSkinProfileScreenState
   }
 
   Future<void> _fetchSkinTypes() async {
-    /* ... */
     if (!mounted) return;
     setState(() => _isLoadingSkinTypes = true);
     try {
@@ -124,7 +120,6 @@ class _MultiPageSkinProfileScreenState
   }
 
   Future<void> _fetchSkinConcerns() async {
-    /* ... */
     if (!mounted) return;
     setState(() => _isLoadingConcerns = true);
     try {
@@ -146,27 +141,19 @@ class _MultiPageSkinProfileScreenState
     }
   }
 
-  // --- MODIFIED: _clearConcerns Method ---
   void _clearConcerns() {
-    if (!mounted) return; // Ensure widget is still mounted
-
-    // Update the state first
+    if (!mounted) return;
     setState(() {
       _selectedConcernIds.clear();
       _isNoneConcernSelected = false;
     });
-
-    // Show a confirmation dialog instead of a SnackBar
     showDialog(
-      context: context, // Use the widget's context
-      barrierDismissible:
-          false, // Optional: Prevent dismissing by tapping outside
+      context: context,
+      barrierDismissible: false,
       builder: (BuildContext dialogContext) {
-        // Use a different context name for the dialog
         return AlertDialog(
           title: const Text('Concerns Cleared'),
           content: const SingleChildScrollView(
-            // Good practice for content
             child: ListBody(
               children: <Widget>[
                 Text('Your selections for skin concerns have been reset.'),
@@ -177,30 +164,25 @@ class _MultiPageSkinProfileScreenState
             TextButton(
               child: const Text('OK'),
               onPressed: () {
-                Navigator.of(
-                  dialogContext,
-                ).pop(); // Dismiss the dialog using its context
+                Navigator.of(dialogContext).pop();
               },
             ),
           ],
           shape: RoundedRectangleBorder(
-            // Optional: rounded corners
             borderRadius: BorderRadius.circular(15.0),
           ),
         );
       },
     );
   }
-  // --- END MODIFIED ---
 
   void _saveProfile() {
-    /* ... */
     if (!mounted) return;
     if (_selectedSkinTypeId == null) {
       _showValidationErrorDialog('Please select your skin type.');
       return;
     }
-    if (_selectedSensitivityLevel == null) {
+    if (_selectedSensitivity == null) {
       _showValidationErrorDialog('Please select your sensitivity level.');
       return;
     }
@@ -210,6 +192,15 @@ class _MultiPageSkinProfileScreenState
       );
       return;
     }
+    // Additional check: Ensure not more than _maxConcerns are selected if "None" is not active
+    if (!_isNoneConcernSelected && _selectedConcernIds.length > _maxConcerns) {
+        _showValidationErrorDialog('You can select a maximum of $_maxConcerns skin concerns.');
+        // Optionally, trim the selection here, or rely on the UI to prevent this state.
+        // For robustness, you could trim:
+        // _selectedConcernIds = _selectedConcernIds.take(_maxConcerns).toSet();
+        return;
+    }
+
     final selectedSkinTypeData =
         _selectedSkinTypeId == null
             ? null
@@ -239,30 +230,43 @@ class _MultiPageSkinProfileScreenState
       skinTypeId: _selectedSkinTypeId,
       concerns: concernsToSave,
       concernIds: concernIdsToSave,
-      sensitivityLevel: _selectedSensitivityLevel,
+      sensitivity: _selectedSensitivity,
     );
     widget.onProfileSaved?.call({
       'skinTypeId': _selectedSkinTypeId,
       'concernIds': concernIdsToSave,
-      'sensitivityLevel': _selectedSensitivityLevel,
+      'sensitivity': _selectedSensitivity,
     });
     _showInfoSnackBar('Profile successfully saved!');
   }
 
   void _nextPage() {
-    /* ... */
     if (_currentPage == 0 && _selectedSkinTypeId == null) {
       _showValidationErrorDialog(
         'Please select your skin type before proceeding.',
       );
       return;
     }
-    if (_currentPage == 1 && _selectedSensitivityLevel == null) {
+    if (_currentPage == 1 && _selectedSensitivity == null) {
       _showValidationErrorDialog(
         'Please select your sensitivity level before proceeding.',
       );
       return;
     }
+    // Validation for concerns page when trying to proceed
+    if (_currentPage == 2 && !_isNoneConcernSelected && _selectedConcernIds.isEmpty) {
+        _showValidationErrorDialog(
+          'Please select at least one skin concern, or choose \'None\'.',
+        );
+        return;
+    }
+     if (_currentPage == 2 && !_isNoneConcernSelected && _selectedConcernIds.length > _maxConcerns) {
+        _showValidationErrorDialog(
+          'You can select a maximum of $_maxConcerns skin concerns. Please adjust your selection.',
+        );
+        return;
+    }
+
 
     final totalPages = 3;
     if (_currentPage < totalPages - 1) {
@@ -274,7 +278,6 @@ class _MultiPageSkinProfileScreenState
   }
 
   void _previousPage() {
-    /* ... */
     if (_currentPage > 0) {
       _pageController.previousPage(
         duration: const Duration(milliseconds: 300),
@@ -284,7 +287,6 @@ class _MultiPageSkinProfileScreenState
   }
 
   void _showValidationErrorDialog(String message) {
-    /* ... */
     showDialog(
       context: context,
       builder:
@@ -302,7 +304,6 @@ class _MultiPageSkinProfileScreenState
   }
 
   void _showErrorSnackBar(String message) {
-    /* ... */
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
@@ -310,7 +311,6 @@ class _MultiPageSkinProfileScreenState
   }
 
   void _showInfoSnackBar(String message) {
-    /* ... */
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
@@ -318,7 +318,6 @@ class _MultiPageSkinProfileScreenState
   }
 
   String _getAppBarTitle() {
-    /* ... */
     switch (_currentPage) {
       case 0:
         return 'Select Skin Type (1/3)';
@@ -330,13 +329,11 @@ class _MultiPageSkinProfileScreenState
         return 'Skin Profile';
     }
   }
-  // --- End Unchanged Methods ---
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final double buttonSize =
-        48; // Define a size for the circular buttons for consistent spacing
+    final double buttonSize = 48;
 
     final displayableSkinTypes =
         _skinTypes
@@ -348,7 +345,6 @@ class _MultiPageSkinProfileScreenState
 
     final List<Widget> pages = [
       SkinTypePage(
-        /* ... */
         key: const ValueKey('SkinTypePage'),
         skinTypes: displayableSkinTypes,
         selectedSkinTypeId: _selectedSkinTypeId,
@@ -358,52 +354,51 @@ class _MultiPageSkinProfileScreenState
         },
       ),
       SensitivityPage(
-        /* ... */
         key: const ValueKey('SensitivityPage'),
         sensitivityOptions: _sensitivityOptions,
-        selectedSensitivityLevel: _selectedSensitivityLevel,
+        selectedSensitivity: _selectedSensitivity,
         onChanged: (value) {
-          if (mounted) setState(() => _selectedSensitivityLevel = value);
+          if (mounted) setState(() => _selectedSensitivity= value);
         },
       ),
-      // *** CONCERNS PAGE INSTANTIATION ***
       ConcernsPage(
         key: const ValueKey('ConcernsPage'),
         skinConcerns: _skinConcerns,
         selectedConcernIds: _selectedConcernIds,
-        // --- USAGE 1: Passing state to child ---
-        isNoneSelected: _isNoneConcernSelected, //
+        isNoneSelected: _isNoneConcernSelected,
         isLoading: _isLoadingConcerns,
-
-        // --- Callback 1: onConcernChanged ---
         onConcernChanged: (concernId, value) {
           if (mounted && value != null) {
             setState(() {
-              if (value == true) {
-                // --- USAGE 2: Modifying state ---
-                _isNoneConcernSelected = false; //
-                _selectedConcernIds.add(concernId);
-              } else {
+              if (value == true) { // Trying to add a concern
+                if (_selectedConcernIds.length < _maxConcerns) {
+                  _isNoneConcernSelected = false; 
+                  _selectedConcernIds.add(concernId);
+                } else {
+                  // Optionally show a message if trying to exceed limit by checking the box
+                   ScaffoldMessenger.of(context).showSnackBar(
+                     SnackBar(content: Text('You can select a maximum of $_maxConcerns concerns.'), duration: const Duration(seconds: 2))
+                   );
+                }
+              } else { // Trying to remove a concern
                 _selectedConcernIds.remove(concernId);
+                // If all concerns are deselected, "None" does not automatically become true.
+                // User must explicitly select "None".
               }
             });
           }
         },
-
-        // --- Callback 2: onNoneChanged ---
         onNoneChanged: (value) {
           if (mounted && value != null) {
             setState(() {
-              // --- USAGE 3: Modifying state ---
               _isNoneConcernSelected = value;
-              // --- USAGE 4: Reading state ---
               if (_isNoneConcernSelected) {
                 _selectedConcernIds.clear();
               }
             });
           }
         },
-      ), // *** END CONCERNS PAGE INSTANTIATION ***
+      ),
     ];
 
     final double progress =
@@ -412,7 +407,6 @@ class _MultiPageSkinProfileScreenState
 
     return Scaffold(
       appBar: AppBar(
-        /* ... AppBar setup ... */
         title: Text(
           _getAppBarTitle(),
           style: const TextStyle(
@@ -437,9 +431,7 @@ class _MultiPageSkinProfileScreenState
       ),
       body: Column(
         children: [
-          // --- Progress Bar ---
           Padding(
-            /* ... Progress bar setup ... */
             padding: const EdgeInsets.symmetric(
               horizontal: 16.0,
               vertical: 12.0,
@@ -452,39 +444,35 @@ class _MultiPageSkinProfileScreenState
               borderRadius: BorderRadius.circular(3),
             ),
           ),
-          // --- PageView ---
           Expanded(
-            /* ... PageView setup ... */
             child: PageView(
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
               onPageChanged: (int page) {
-                setState(() {
-                  _currentPage = page;
-                });
+                if (mounted) {
+                    setState(() {
+                    _currentPage = page;
+                    });
+                }
               },
               children: pages,
             ),
           ),
-
-          // --- *** NEW: Navigation Controls Area (Column) *** ---
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 16.0,
               vertical: 16.0,
             ),
             child: Column(
-              // Main container for controls
-              mainAxisSize: MainAxisSize.min, // Take only needed vertical space
+              mainAxisSize: MainAxisSize.min, 
               children: [
-                // --- Clear Concerns Button Row (Top Right) ---
-                if (isLastPage) // Show only on last page
+                if (isLastPage) 
                   Align(
                     alignment: Alignment.centerRight,
                     child: Padding(
                       padding: const EdgeInsets.only(
                         bottom: 8.0,
-                      ), // Space below clear button
+                      ), 
                       child: TextButton(
                         child: const Text('Clear Concerns'),
                         style: TextButton.styleFrom(
@@ -494,17 +482,11 @@ class _MultiPageSkinProfileScreenState
                       ),
                     ),
                   ),
-
-                // --- Main Navigation Row (Previous / Save / Next) ---
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
-                    // --- Previous Button ---
                     SizedBox(
-                      // Use SizedBox to reserve space even when hidden
-                      width:
-                          buttonSize +
-                          8, // Approx size of circular button + padding
+                      width: buttonSize + 8, 
                       height: buttonSize,
                       child: Opacity(
                         opacity: _currentPage > 0 ? 1.0 : 0.0,
@@ -527,8 +509,6 @@ class _MultiPageSkinProfileScreenState
                         ),
                       ),
                     ),
-
-                    // --- Save Button (Center on Last Page) ---
                     if (isLastPage)
                       ElevatedButton(
                         child: const Text('Save Profile'),
@@ -543,17 +523,14 @@ class _MultiPageSkinProfileScreenState
                           padding: const EdgeInsets.symmetric(
                             horizontal: 32,
                             vertical: 12,
-                          ), // Increased padding
+                          ), 
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
                         ),
                         onPressed: _saveProfile,
                       ),
-
-                    // --- Next Button ---
                     SizedBox(
-                      // Use SizedBox to reserve space even when hidden
                       width: buttonSize + 8,
                       height: buttonSize,
                       child: Opacity(
@@ -582,7 +559,6 @@ class _MultiPageSkinProfileScreenState
               ],
             ),
           ),
-          // --- *** End Navigation Controls Area *** ---
         ],
       ),
     );

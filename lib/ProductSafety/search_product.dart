@@ -1,8 +1,10 @@
+// search_product.dart
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
+
 import '../util/safetyscore_util.dart';
 import '../util/compatibilityscore_util.dart';
-import 'package:provider/provider.dart';
 import '../providers/skin_profile_provider.dart';
 import 'product_analysis.dart';
 
@@ -11,14 +13,12 @@ class SafetyResultScreen extends StatefulWidget {
   final String productName;
   final String brand;
   final String imageUrl;
-  final VoidCallback onProfileRequested;
 
   const SafetyResultScreen({
     required this.productId,
     required this.productName,
     required this.brand,
     required this.imageUrl,
-    required this.onProfileRequested,
     Key? key,
   }) : super(key: key);
 
@@ -29,195 +29,272 @@ class SafetyResultScreen extends StatefulWidget {
 class SafetyResultScreenState extends State<SafetyResultScreen> {
   final supabase = Supabase.instance.client;
 
-  // Skin type and concern mappings
-  final Map<int, String> skinTypeMap = {
-    1: "Oily",
-    2: "Dry",
-    3: "Combination",
-    4: "Sensitive",
-    5: "Normal",
-  };
+  final Map<int, String> skinTypeMap = {1: "Oily", 2: "Dry", 3: "Combination", 4: "Sensitive", 5: "Normal"};
+  final Map<int, String> concernMap = {1: "Acne", 2: "Hyperpigmentation", 3: "Post Blemish Scar", 4: "Redness", 5: "Aging", 6: "Enlarged Pores", 7: "Impaired Skin Barrier", 
+  8: "Uneven Skin Tone", 9: "Texture", 10: "Radiance", 11: "Elasticity", 12: "Dullness", 13: "Blackheads", 15: "Dryness and dehydration", 19: "Dark circles", 20: "Puffiness"};
 
-  final Map<int, String> concernMap = {
-    1: "Acne", 2: "Pigmentation", 3: "Post Blemish Scar",
-    4: "Redness", 5: "Aging", 6: "Enlarged Pores",
-    7: "Impaired Skin Barrier", 8: "Uneven Skin Tone",
-    9: "Texture", 10: "Radiance", 11: "Elasticity",
-    12: "Dullness", 13: "Blackheads",
-  };
+  ProductGuidance? productSafetyGuidance;
+  List<Map<String, dynamic>> productIngredients = [];
+  bool isLoadingSafety = true;
+  String? safetyErrorMessage;
 
-  // Product safety state
-  double? safetyScore;
-  List<Map<String, dynamic>> ingredients = [];
-  bool isLoading = true;
-  String? errorMessage;
-
-  // Compatibility state
-  List<Map<String, dynamic>> compatibilityResults = [];
+  ProductRecommendationResult? productCompatibilityRecommendation;
   bool isLoadingCompatibility = true;
-  double? _compatibilityScore;
-  String _recommendationStatus = "";
+  List<Map<String, dynamic>> _uiCompatibilityIngredientBreakdown = [];
+  bool _hasFetchedUiCompatibilityData = false;
+  Map<String, dynamic>? _currentProductDataForCompat;
+  List<int> _currentProductAddressesConcernIdsForCompatDB = [];
+
+  // NEW state variables for detailed insights
+  List<String> _productAddressesTheseUserConcernsNames = [];
+  List<Map<String, String>> _ingredientsAddressTheseUserConcernsDetails = [];
+  bool _productDirectlyTargetsUserSelectedConcerns = false;
+  bool _ingredientsTargetUserSelectedConcerns = false;
+
 
   @override
   void initState() {
     super.initState();
-    fetchIngredientDetails();
+    _fetchAllProductData();
   }
 
-  // Helper methods for skin type and concern names
   String getSkinTypeName(int id) => skinTypeMap[id] ?? "Unknown";
   String getConcernName(int id) => concernMap[id] ?? "Unknown";
 
-  Future<void> fetchIngredientDetails() async {
-    try {
-      final ingredientResponse = await supabase
-          .from('product_ingredients')
-          .select('ingredient_id')
-          .eq('product_id', widget.productId);
-
-      if (ingredientResponse.isEmpty) {
-        setState(() {
-          ingredients = [];
-          safetyScore = null;
-          isLoading = false;
-        });
-        return;
-      }
-
-      final ingredientIds = ingredientResponse
-          .map<int>((ingredient) => ingredient['ingredient_id'] as int)
-          .toList();
-
-      final safetyResponse = await supabase
-          .from('Safety Rating')
-          .select('''
-            Ingredient_Id, Ingredient_Name, Benefits, Score, Other_Concerns,
-            Cancer_Concern, Allergies_Immunotoxicity,
-            Developmental_Reproductive_Toxicity, Function, Comodogenic, Irritation
-          ''')
-          .inFilter('Ingredient_Id', ingredientIds);
-
-      setState(() {
-        ingredients = safetyResponse;
-        safetyScore = ProductScorer.calculateSafetyScore(ingredients);
-        isLoading = false;
-      });
-
-      fetchCompatibilityDetails(ingredientIds);
-    } catch (error) {
-      setState(() {
-        errorMessage = "Failed to fetch ingredient details";
-        isLoading = false;
-      });
+  void setStateIfMounted(VoidCallback fn) {
+    if (mounted) {
+      setState(fn);
     }
   }
 
-  Future<void> fetchCompatibilityDetails(List<int> ingredientIds) async {
+  void _handleProfileUpdateAndRefresh() {
+    print("Profile update requested. Re-analyzing compatibility in SafetyResultScreenState.");
+    setStateIfMounted(() {
+      isLoadingCompatibility = true;
+      _productAddressesTheseUserConcernsNames = [];
+      _ingredientsAddressTheseUserConcernsDetails = [];
+      _productDirectlyTargetsUserSelectedConcerns = false;
+      _ingredientsTargetUserSelectedConcerns = false;
+    });
+    analyzeCompatibility();
+  }
+
+  Future<void> _fetchAllProductData() async {
+    setStateIfMounted(() {
+      isLoadingSafety = true; isLoadingCompatibility = true; safetyErrorMessage = null;
+      productSafetyGuidance = null; productCompatibilityRecommendation = null;
+      _hasFetchedUiCompatibilityData = false; _uiCompatibilityIngredientBreakdown = [];
+      _currentProductDataForCompat = null; _currentProductAddressesConcernIdsForCompatDB = [];
+      _productAddressesTheseUserConcernsNames = []; _ingredientsAddressTheseUserConcernsDetails = [];
+      _productDirectlyTargetsUserSelectedConcerns = false; _ingredientsTargetUserSelectedConcerns = false;
+    });
+
     try {
-      if (ingredientIds.isEmpty) {
-        setState(() {
-          compatibilityResults = [];
-          isLoadingCompatibility = false;
-        });
+      try {
+        final productResponse = await supabase.from('Products').select().eq('Product_Id', widget.productId).single();
+        _currentProductDataForCompat = productResponse;
+        final productConcernsResponse = await supabase.from('product_skinconcerns').select('concern_id').eq('product_id', widget.productId);
+        _currentProductAddressesConcernIdsForCompatDB = productConcernsResponse.map<int>((c) => c['concern_id'] as int).toList();
+        print("Fetched Product Direct Concern IDs from DB for Product ${widget.productId}: $_currentProductAddressesConcernIdsForCompatDB");
+      } catch (e) {
+        print("Error fetching product-level data for product ID ${widget.productId}: $e");
+        setStateIfMounted(() { safetyErrorMessage = "Could not load product details."; isLoadingSafety = false; isLoadingCompatibility = false;});
         return;
       }
 
-      final skinTypeResponse = await supabase
-          .from('ingredient_skintype')
-          .select('ingredient_id, skin_type_id, is_suitable')
-          .inFilter('ingredient_id', ingredientIds);
+      final ingredientLinksResponse = await supabase.from('product_ingredients').select('ingredient_id').eq('product_id', widget.productId);
+      if (ingredientLinksResponse.isEmpty) {
+        setStateIfMounted(() {
+          productIngredients = [];
+          productSafetyGuidance = ProductScorer.getOverallProductGuidance([]);
+          isLoadingSafety = false;
+          _hasFetchedUiCompatibilityData = true;
+        });
+        analyzeCompatibility();
+        return;
+      }
+      final ingredientIds = ingredientLinksResponse.map<int>((ing) => ing['ingredient_id'] as int).toList();
 
-      final skinConcernResponse = await supabase
-          .from('ingredient_skinconcerns')
-          .select('ingredient_id, concern_id, is_suitable')
-          .inFilter('ingredient_id', ingredientIds);
+      List<Map<String, dynamic>> tempProductIngredients = [];
+      if (ingredientIds.isNotEmpty) {
+          final safetyDataResponse = await supabase.from('Safety Rating')
+              .select('Ingredient_Id, Ingredient_Name, Score, Irritation, Comodogenic, Other_Concerns, Cancer_Concern, Allergies_Immunotoxicity, Developmental_Reproductive_Toxicity, Function, Benefits')
+              .inFilter('Ingredient_Id', ingredientIds);
 
-      Map<int, String> ingredientNamesMap = {
-        for (var ingredient in ingredients)
-          ingredient['Ingredient_Id'] as int: ingredient['Ingredient_Name'] as String,
-      };
+          final ingConcernSuitabilityResp = await supabase.from('ingredient_skinconcerns').select('ingredient_id, concern_id').inFilter('ingredient_id', ingredientIds).eq('is_suitable', true);
+          Map<int, List<int>> ingToSuitableConcernsMap = {};
+          for (var row in ingConcernSuitabilityResp) { ingToSuitableConcernsMap.putIfAbsent(row['ingredient_id'], () => []).add(row['concern_id']);}
 
-      setState(() {
-        compatibilityResults = [
-          ...skinTypeResponse.map((e) => {
-            ...e,
-            'type': 'skin_type',
-            'ingredient_name': ingredientNamesMap[e['ingredient_id']] ?? 'Unknown',
-          }),
-          ...skinConcernResponse.map((e) => {
-            ...e,
-            'type': 'skin_concern',
-            'ingredient_name': ingredientNamesMap[e['ingredient_id']] ?? 'Unknown',
-          }),
-        ];
-        isLoadingCompatibility = false;
+          for (var safetyData in safetyDataResponse) {
+              Map<String, dynamic> detailedIng = Map<String, dynamic>.from(safetyData);
+              detailedIng['Suitable_For_Concern_Ids'] = ingToSuitableConcernsMap[safetyData['Ingredient_Id']] ?? [];
+              tempProductIngredients.add(detailedIng);
+          }
+      }
+
+      setStateIfMounted(() {
+        productIngredients = tempProductIngredients;
+        productSafetyGuidance = ProductScorer.getOverallProductGuidance(productIngredients);
+        isLoadingSafety = false;
       });
 
       analyzeCompatibility();
+      
+      if (ingredientIds.isNotEmpty) {
+        await _fetchUiCardCompatibilityData(ingredientIds);
+      } else {
+         setStateIfMounted(() => _hasFetchedUiCompatibilityData = true);
+      }
     } catch (error) {
-      setState(() {
-        isLoadingCompatibility = false;
+      print("Error fetching all product data: $error");
+      setStateIfMounted(() { safetyErrorMessage = "Failed to load product analysis data."; isLoadingSafety = false; isLoadingCompatibility = false;});
+    }
+  }
+
+  Future<void> _fetchUiCardCompatibilityData(List<int> ingredientIds) async {
+    if (ingredientIds.isEmpty) {
+        setStateIfMounted(() => _hasFetchedUiCompatibilityData = true);
+        return;
+    }
+    try {
+      final skinTypeResp = await supabase.from('ingredient_skintype').select('ingredient_id, skin_type_id, is_suitable').inFilter('ingredient_id', ingredientIds);
+      final skinConcernResp = await supabase.from('ingredient_skinconcerns').select('ingredient_id, concern_id, is_suitable').inFilter('ingredient_id', ingredientIds);
+      
+      Map<int, String> ingNamesMap = {};
+      if (productIngredients.isNotEmpty) {
+        ingNamesMap = { for (var ing in productIngredients) ing['Ingredient_Id'] as int: ing['Ingredient_Name'] as String };
+      }
+
+      setStateIfMounted(() {
+        _uiCompatibilityIngredientBreakdown = [
+          ...skinTypeResp.map((e) => {...e, 'type': 'skin_type', 'ingredient_name': ingNamesMap[e['ingredient_id']] ?? 'Unknown Ing ID: ${e['ingredient_id']}'}),
+          ...skinConcernResp.map((e) => {...e, 'type': 'skin_concern', 'ingredient_name': ingNamesMap[e['ingredient_id']] ?? 'Unknown Ing ID: ${e['ingredient_id']}'}),
+        ];
+        _hasFetchedUiCompatibilityData = true;
       });
+    } catch (e) {
+      print("Error fetching UI card compatibility data: $e");
+       setStateIfMounted(() => _hasFetchedUiCompatibilityData = true);
     }
   }
 
   void analyzeCompatibility() {
     final skinProfile = Provider.of<SkinProfileProvider>(context, listen: false);
-    final int? userSkinTypeId = skinProfile.userSkinTypeId;
-    final List<int> userConcernIds = skinProfile.userConcernIds;
+    print("User Selected Concern IDs for analyzeCompatibility: ${skinProfile.userConcernIds}");
 
-    final filteredResults = compatibilityResults.where((result) {
-      if (result['type'] == 'skin_type') {
-        return result['skin_type_id'] == userSkinTypeId;
-      } else if (result['type'] == 'skin_concern') {
-        return userConcernIds.contains(result['concern_id']);
+    if (skinProfile.userSkinTypeId == null || skinProfile.userSensitivity == null) {
+        print("User skin profile not fully set.");
+        setStateIfMounted(() {
+            isLoadingCompatibility = false;
+            productCompatibilityRecommendation = ProductRecommendationResult(
+                status: "Set Profile",
+                reasons: ["Please complete your skin profile (skin type and sensitivity question)."]
+            );
+        });
+        return;
+    }
+
+    if (_currentProductDataForCompat == null) {
+        print("Product data not available for compatibility analysis.");
+         setStateIfMounted(() {
+            isLoadingCompatibility = false;
+            productCompatibilityRecommendation = ProductRecommendationResult(status: "Error", reasons: ["Product details could not be loaded."]);
+        });
+        return;
+    }
+
+    bool userConsidersSensitive = (skinProfile.userSensitivity?.toLowerCase() == "yes");
+
+    // --- Determine detailed insights for "Recommended" template ---
+    List<String> tempProductAddressesUserConcernsNames = [];
+    List<Map<String, String>> tempIngredientsAddressUserConcernsDetails = [];
+    bool tempProductDirectlyTargets = false;
+    bool tempIngredientsTarget = false;
+
+    if (skinProfile.userConcernIds.isNotEmpty) {
+      for (int userConcernId in skinProfile.userConcernIds) {
+        if (_currentProductAddressesConcernIdsForCompatDB.contains(userConcernId)) {
+          tempProductDirectlyTargets = true;
+          if (!tempProductAddressesUserConcernsNames.contains(getConcernName(userConcernId))) {
+            tempProductAddressesUserConcernsNames.add(getConcernName(userConcernId));
+          }
+        }
       }
-      return false;
-    }).toList();
 
-    var skinTypeSuitability = {
-      for (var e in filteredResults.where((e) => e['type'] == 'skin_type'))
-        e['ingredient_id'] as int: e['is_suitable'] as bool,
-    };
+      for (var ingredient in productIngredients) {
+        List<int> suitableForConcernsByIngredient = (ingredient['Suitable_For_Concern_Ids'] as List<dynamic>?)?.cast<int>() ?? [];
+        String ingredientName = ingredient['Ingredient_Name'] ?? 'Unknown Ingredient';
+        for (int userConcernId in skinProfile.userConcernIds) {
+          if (suitableForConcernsByIngredient.contains(userConcernId)) {
+            tempIngredientsTarget = true;
+            // Avoid adding duplicate ingredient-concernName pairs for the same user concern
+            bool alreadyAdded = tempIngredientsAddressUserConcernsDetails.any((detail) => 
+                detail['ingredientName'] == ingredientName && detail['concernName'] == getConcernName(userConcernId)
+            );
+            if (!alreadyAdded) {
+                 tempIngredientsAddressUserConcernsDetails.add({
+                    'ingredientName': ingredientName,
+                    'concernName': getConcernName(userConcernId)
+                 });
+            }
+          }
+        }
+      }
+    }
+    // --- End detailed insights determination ---
 
-    double score = calculateCompatibilityScore(
-      context: context,
-      ingredients: ingredients,
-      skinTypeSuitability: skinTypeSuitability,
-    );
+    ProductRecommendationResult recommendationResult =
+        CompatibilityScorer.getProductRecommendation(
+            userActualSkinTypeName: skinProfile.userSkinType,
+            userConsidersSkinSensitive: userConsidersSensitive,
+            userConcernIds: skinProfile.userConcernIds,
+            productData: _currentProductDataForCompat!,
+            productDirectlyAddressesConcernIds: _currentProductAddressesConcernIdsForCompatDB,
+            productIngredientsWithConcernSuitability: productIngredients,
+        );
 
-    setState(() {
-      _compatibilityScore = score;
-      _recommendationStatus = getRecommendationStatus(score);
-      compatibilityResults = filteredResults;
+    setStateIfMounted(() {
+      productCompatibilityRecommendation = recommendationResult;
+      // Store the detailed insights
+      _productAddressesTheseUserConcernsNames = tempProductAddressesUserConcernsNames;
+      _ingredientsAddressTheseUserConcernsDetails = tempIngredientsAddressUserConcernsDetails;
+      _productDirectlyTargetsUserSelectedConcerns = tempProductDirectlyTargets;
+      _ingredientsTargetUserSelectedConcerns = tempIngredientsTarget;
+      
+      isLoadingCompatibility = false;
     });
-  }
-
-  String getRecommendationStatus(double score) {
-    if (score >= 65) return "Recommended";
-    if (score >= 40) return "Neutral - Use with Caution";
-    return "Not Recommended";
   }
 
   @override
   Widget build(BuildContext context) {
-    return CompatibilityTab(
+    if (isLoadingSafety || !_hasFetchedUiCompatibilityData || (_currentProductDataForCompat == null && !isLoadingSafety && safetyErrorMessage == null) ) {
+      return Scaffold(appBar: AppBar(title: Text(widget.productName)), body: const Center(child: CircularProgressIndicator()));
+    }
+    if (safetyErrorMessage != null) {
+        return Scaffold(appBar: AppBar(title: Text(widget.productName)), body: Center(child: Text(safetyErrorMessage!, style: const TextStyle(color: Colors.red, fontSize: 16))));
+    }
+
+    String currentRecommendationStatus = productCompatibilityRecommendation?.status ?? (isLoadingCompatibility ? "Loading..." : "Set Profile");
+    List<String>? currentCompatibilityReasons = productCompatibilityRecommendation?.reasons ?? ((currentRecommendationStatus == "Set Profile") ? ["Please complete your skin profile for personalized advice."] : null); // Allow null for no reasons
+
+    return ProductAnalysis(
       productName: widget.productName,
       brand: widget.brand,
       imageUrl: widget.imageUrl,
-      averageScore: safetyScore,
-      matchedIngredients: ingredients,
-      unmatchedIngredients: const [], // Not used in safety_result
-      compatibilityResults: compatibilityResults,
+      productGuidance: productSafetyGuidance,
+      matchedIngredients: productIngredients,
+      unmatchedIngredients: const [],
+      compatibilityResults: _uiCompatibilityIngredientBreakdown,
       isLoadingCompatibility: isLoadingCompatibility,
-      compatibilityScore: _compatibilityScore,
-      recommendationStatus: _recommendationStatus,
-      onProfileRequested: () {
-        // This will trigger the callback chain back to MainScreen
-        widget.onProfileRequested();
-      },      
+      recommendationStatus: currentRecommendationStatus,
+      compatibilityReasons: currentCompatibilityReasons,
+      onProfileRequested: _handleProfileUpdateAndRefresh,
       skinTypeMap: skinTypeMap,
       concernMap: concernMap,
+      productAddressesTheseUserConcernsNames: _productAddressesTheseUserConcernsNames,
+      ingredientsAddressTheseUserConcernsDetails: _ingredientsAddressTheseUserConcernsDetails,
+      productDirectlyTargetsUserSelectedConcerns: _productDirectlyTargetsUserSelectedConcerns,
+      ingredientsTargetUserSelectedConcerns: _ingredientsTargetUserSelectedConcerns,
     );
   }
 }

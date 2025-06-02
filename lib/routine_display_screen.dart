@@ -407,8 +407,7 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () {
-            print("Tapped on product: ${product.name}");
-            // TODO: Implement navigation to product details page
+            _showProductDetailsModal(context, product);
           },
           borderRadius: BorderRadius.circular(12),
           child: Padding(
@@ -463,7 +462,7 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: Text(
-                      "\$${product.price!.toStringAsFixed(2)}",
+                      "\RM${product.price!.toStringAsFixed(2)}",
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87),
                     ),
                   ),
@@ -474,4 +473,114 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
       ),
     );
   }
+
+
+  // --- NEW: Method to show product details in a modal bottom sheet ---
+  void _showProductDetailsModal(BuildContext context, RecommendedProduct product) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // Allows the sheet to take up more height
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
+      ),
+      builder: (BuildContext bmsContext) {
+        return DraggableScrollableSheet( // Makes content scrollable within the sheet
+          initialChildSize: 0.6, // Start at 60% of screen height
+          minChildSize: 0.4,   // Min at 40%
+          maxChildSize: 0.9,   // Max at 90%
+          expand: false, // Important: set to false
+          builder: (BuildContext _, ScrollController scrollController) {
+            return Container(
+              padding: const EdgeInsets.all(20.0),
+              child: ListView( // Use ListView for scrollable content
+                controller: scrollController,
+                children: <Widget>[
+                  // Drag Handle (Optional but good UX)
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 5,
+                      margin: const EdgeInsets.only(bottom: 15.0),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  // Product Image (Larger)
+                  if (product.imageUrl != null && product.imageUrl!.isNotEmpty)
+                    Center(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12.0),
+                        child: Image.network(
+                          product.imageUrl!,
+                          height: 180, // Larger image in modal
+                          width: 180,
+                          fit: BoxFit.contain, // Use contain to see full image
+                           errorBuilder: (context, error, stackTrace) =>
+                                const Icon(Icons.broken_image, size: 100, color: Colors.grey),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  // Product Name
+                  Text(
+                    product.name,
+                    style: Theme.of(bmsContext).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  // Brand
+                  if (product.brand != null)
+                    Center(
+                      child: Text(
+                        "Brand: ${product.brand!}",
+                        style: Theme.of(bmsContext).textTheme.titleMedium?.copyWith(color: Colors.grey[700]),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  // Price
+                  if (product.price != null)
+                    Center(
+                      child: Text(
+                        "\RM${product.price!.toStringAsFixed(2)}",
+                        style: Theme.of(bmsContext).textTheme.titleLarge?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                    ),
+                  const SizedBox(height: 4),
+                  // Similarity Score (Optional)
+                  // if (product.similarityScore != null)
+                  //    Center(
+                  //      child: Text(
+                  //        "Relevance: ${(product.similarityScore! * 100).toStringAsFixed(0)}%",
+                  //        style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
+                  //      ),
+                  //    ),
+
+                  const Divider(height: 32, thickness: 1),
+                  // Product Description
+                  Text(
+                    "Description:",
+                    style: Theme.of(bmsContext).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    product.description != null && product.description!.isNotEmpty
+                        ? product.description!
+                        : "No description available for this product.",
+                    style: Theme.of(bmsContext).textTheme.bodyMedium?.copyWith(height: 1.5),
+                  ),
+                  const SizedBox(height: 20), // Space at the bottom
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
 }

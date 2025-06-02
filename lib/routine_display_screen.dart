@@ -7,10 +7,11 @@ import '../services/skincare_routine_service.dart';
 import '../model/routine_models.dart'; // Ensure this path is correct
 import '../UserProfile/multi_screen.dart'; // For navigation
 
-class RoutineDisplayScreen extends StatefulWidget {
-  final VoidCallback? onNavigateToProfile; // Callback to tell MainScreen to switch
+// Enum to represent the selected routine time
+enum RoutineTime { morning, night }
 
-  const RoutineDisplayScreen({Key? key, this.onNavigateToProfile}) : super(key: key);
+class RoutineDisplayScreen extends StatefulWidget {
+  const RoutineDisplayScreen({Key? key}) : super(key: key);
 
   @override
   _RoutineDisplayScreenState createState() => _RoutineDisplayScreenState();
@@ -21,69 +22,82 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
   SkincareRoutine? _skincareRoutine;
   bool _isLoading = true;
   String? _errorMessage;
-  SkinProfileProvider? _profileProviderRef; // To store and compare
+
+  // --- To track the previous state of the provider for comparison ---
+  int? _lastSkinTypeId;
+  String? _lastSensitivity;
+  Set<int>? _lastConcernIds;
+  // --- ---
+
+  // --- NEW STATE VARIABLE for AM/PM toggle ---
+  RoutineTime _selectedRoutineTime = RoutineTime.morning; // Default to morning
 
   @override
   void initState() {
     super.initState();
+    // Initial fetch after the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) { // Ensure mounted before accessing context
-        _profileProviderRef = Provider.of<SkinProfileProvider>(context, listen: false);
+      if (mounted) {
+        // Store initial provider state before first fetch
+        final initialProfileProvider = Provider.of<SkinProfileProvider>(context, listen: false);
+        _updateLastKnownProfileState(initialProfileProvider);
         _fetchRoutine();
       }
     });
   }
 
+  // Helper to store the last known state of relevant profile data
+  void _updateLastKnownProfileState(SkinProfileProvider provider) {
+    _lastSkinTypeId = provider.userSkinTypeId;
+    _lastSensitivity = provider.userSensitivity;
+    _lastConcernIds = provider.userConcernIds.toSet(); // Store as a set for easy comparison
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (mounted) { // Ensure mounted
-        final currentProfileProvider = Provider.of<SkinProfileProvider>(context, listen: true); // Listen for changes
+    if (mounted) {
+      // Listen to the provider to detect changes
+      final currentProfileProvider = Provider.of<SkinProfileProvider>(context /*, listen: true is default */);
 
-        // Check if it's the first load or if critical data has changed
-        bool shouldRefresh = false;
-        if (_profileProviderRef == null) { // First time didChangeDependencies is called after initState
-             shouldRefresh = true; // Or rely on initState's fetch
-        } else {
-            // Compare relevant parts of the profile
-            if (_profileProviderRef!.userSkinTypeId != currentProfileProvider.userSkinTypeId ||
-                _profileProviderRef!.userSensitivity != currentProfileProvider.userSensitivity ||
-                !SetEquality().equals(
-                    _profileProviderRef!.userConcernIds.toSet(),
-                    currentProfileProvider.userConcernIds.toSet()
-                )) {
-                shouldRefresh = true;
-            }
-        }
+      bool profileHasChanged = false;
+      if (_lastSkinTypeId == null && currentProfileProvider.userSkinTypeId != null) {
+        // This handles the case where the profile was initially null and now has data
+        profileHasChanged = true;
+      } else if (_lastSkinTypeId != currentProfileProvider.userSkinTypeId ||
+          _lastSensitivity != currentProfileProvider.userSensitivity ||
+          !SetEquality().equals(_lastConcernIds, currentProfileProvider.userConcernIds.toSet())) {
+        profileHasChanged = true;
+      }
 
-        if (shouldRefresh) {
-            print("Profile data changed or initial load in didChangeDependencies, re-fetching routine.");
-            _profileProviderRef = currentProfileProvider; // Update the reference
-            _fetchRoutine();
-        }
+      if (profileHasChanged) {
+        print("Profile data changed in didChangeDependencies, re-fetching routine.");
+        _updateLastKnownProfileState(currentProfileProvider); // Update our tracker
+        _fetchRoutine();
+      }
     }
   }
-
 
   Future<void> _fetchRoutine() async {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
-      _errorMessage = null; // Reset error message on new fetch
+      _errorMessage = null;
     });
 
-    // Use the stored _profileProviderRef if available, otherwise get a fresh one
-    final profileProvider = _profileProviderRef ?? Provider.of<SkinProfileProvider>(context, listen: false);
+    // Get the most current provider state for fetching
+    final profileProvider = Provider.of<SkinProfileProvider>(context, listen: false);
 
-    // Check if profile is complete before attempting to build routine
     if (profileProvider.userSkinTypeId == null || profileProvider.userSensitivity == null) {
+      print("Profile not set, showing prompt.");
       setState(() {
         _isLoading = false;
-        _errorMessage = "PROFILE_NOT_SET"; // Special error code
+        _errorMessage = "PROFILE_NOT_SET";
       });
       return;
     }
 
+    print("Profile is set, attempting to build routine.");
     try {
       final routine = await _routineService.buildRoutine(
         skinTypeId: profileProvider.userSkinTypeId,
@@ -107,33 +121,20 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
   }
 
   void _navigateToProfileScreen() {
-    // This function will push MultiPageSkinProfileScreen
-    // and trigger a re-fetch of the routine when it's popped after saving.
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (routeContext) => MultiPageSkinProfileScreen(
           onProfileSaved: (profileData) {
-            Navigator.of(routeContext).pop(); // Pop the profile screen
-            // The didChangeDependencies or a direct call to _fetchRoutine will handle refresh
-            // _fetchRoutine(); // Explicitly call after profile is saved and popped
+            Navigator.of(routeContext).pop();
           },
           onBackPressed: () {
-            Navigator.of(routeContext).pop(); // Just pop if back is pressed
+            Navigator.of(routeContext).pop();
           },
         ),
       ),
-    ).then((_) {
-        // This .then() block executes after MultiPageSkinProfileScreen is popped.
-        // If onProfileSaved was called, the Provider would have updated.
-        // didChangeDependencies should pick up the change.
-        // If you want to be absolutely sure, you can call _fetchRoutine here,
-        // but it might be redundant if didChangeDependencies is working correctly.
-        print("Returned from profile screen. Checking if refresh needed.");
-        // _fetchRoutine(); // Consider if this is needed or if didChangeDependencies is sufficient
-    });
+    );
   }
-
 
   Widget _buildProfileSetupPrompt() {
     return Center(
@@ -160,7 +161,7 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
             ElevatedButton.icon(
               icon: const Icon(Icons.edit_note_rounded, color: Colors.white),
               label: const Text("Set Skin Profile", style: TextStyle(color: Colors.white)),
-              onPressed: _navigateToProfileScreen, // Use the new navigation method
+              onPressed: _navigateToProfileScreen,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
@@ -174,31 +175,90 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
-    // Ensure provider is listened to for didChangeDependencies to work effectively
-    // Provider.of<SkinProfileProvider>(context);
+    Provider.of<SkinProfileProvider>(context); // Establishes dependency for didChangeDependencies
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Your Skincare Routine', style: TextStyle(color: Colors.white)),
         backgroundColor: Theme.of(context).colorScheme.primary,
-        iconTheme: const IconThemeData(color: Colors.white), // For back button if pushed
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: _buildBody(),
+      body: _buildBodyWithToggle(), // Changed to use the new body builder
     );
   }
 
-  Widget _buildBody() {
+  // --- NEW: Method to build the AM/PM toggle ---
+  Widget _buildAmPmToggle() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+      child: Center(
+        child: Container(
+          decoration: BoxDecoration(
+            // Optional: Add a background to the toggle container itself for better visual separation
+            // color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+            // borderRadius: BorderRadius.circular(12.0),
+          ),
+          child: ToggleButtons(
+            isSelected: [
+              _selectedRoutineTime == RoutineTime.morning,
+              _selectedRoutineTime == RoutineTime.night,
+            ],
+            onPressed: (int index) {
+              if (!mounted) return;
+              setState(() {
+                _selectedRoutineTime = index == 0 ? RoutineTime.morning : RoutineTime.night;
+              });
+            },
+            borderRadius: BorderRadius.circular(10.0),
+            selectedColor: Colors.white,
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.7), // Icon color when not selected
+            fillColor: Theme.of(context).colorScheme.primary, // Background of selected button
+            splashColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+            borderColor: Theme.of(context).colorScheme.outline.withOpacity(0.5),
+            selectedBorderColor: Theme.of(context).colorScheme.primary,
+            borderWidth: 1.5,
+            constraints: const BoxConstraints(minHeight: 48.0, minWidth: 100.0), // Ensure buttons have good tap area
+            children: const <Widget>[
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.wb_sunny_outlined, size: 22),
+                    SizedBox(width: 8),
+                    Text("AM", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.nights_stay_outlined, size: 22),
+                    SizedBox(width: 8),
+                    Text("PM", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- MODIFIED: Main body builder to include toggle ---
+  Widget _buildBodyWithToggle() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
+    if (_errorMessage == "PROFILE_NOT_SET") {
+      return _buildProfileSetupPrompt();
+    }
     if (_errorMessage != null) {
-      if (_errorMessage == "PROFILE_NOT_SET") {
-        return _buildProfileSetupPrompt();
-      }
-      // General error message
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -214,11 +274,11 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
               ),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: _fetchRoutine, // Retry fetching
+                onPressed: _fetchRoutine,
                 child: const Text('Try Again'),
               ),
               const SizedBox(height: 10),
-              TextButton( // Option to go to profile settings
+              TextButton(
                 onPressed: _navigateToProfileScreen,
                 child: const Text('Check Profile Settings'),
               )
@@ -239,112 +299,179 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
       ));
     }
 
-    // ... (rest of your _buildRoutineSection and ListView for displaying the routine)
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
+    return Column(
       children: [
-        _buildRoutineSection("Morning Routine", _skincareRoutine!.morningRoutine),
-        const SizedBox(height: 24),
-        _buildRoutineSection("Night Routine", _skincareRoutine!.nightRoutine),
+        _buildAmPmToggle(), // Add the toggle button
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0), // Adjusted top padding
+            children: [
+              // Conditionally render the selected routine
+              if (_selectedRoutineTime == RoutineTime.morning)
+                _buildRoutineSection("Morning Routine", _skincareRoutine!.morningRoutine)
+              else // It must be night
+                _buildRoutineSection("Night Routine", _skincareRoutine!.nightRoutine),
+            ],
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildRoutineSection(String title, List<RoutineStep> steps) {
-    // ... (your existing _buildRoutineSection implementation)
      return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 12),
-        if (steps.isEmpty) const Padding(
-          padding: EdgeInsets.symmetric(vertical: 8.0),
-          child: Text("No steps defined for this routine, or profile needs completion.", style: TextStyle(fontStyle: FontStyle.italic)),
+        // The title is now implicitly handled by the toggle, but you can keep it if you like
+        // Padding(
+        //   padding: const EdgeInsets.only(bottom: 8.0),
+        //   child: Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+        // ),
+        if (steps.isEmpty && (_skincareRoutine?.morningRoutine.every((s) => s.recommendedProducts.isEmpty) ?? true) && (_skincareRoutine?.nightRoutine.every((s) => s.recommendedProducts.isEmpty) ?? true) )
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16.0),
+            child: Center(child: Text("No products could be recommended for your current profile. Please ensure your profile is complete or try adjusting your concerns.", style: TextStyle(fontStyle: FontStyle.italic, color: Colors.orangeAccent), textAlign: TextAlign.center,)),
+          )
+        else if (steps.isEmpty) const Padding(
+          padding: EdgeInsets.symmetric(vertical: 16.0),
+          child: Center(child: Text("No steps defined for this routine.", style: TextStyle(fontStyle: FontStyle.italic), textAlign: TextAlign.center,)),
         ),
-        ...steps.map((step) {
-          bool productFound = step.recommendedProduct != null;
-          return Card(
-            elevation: 2.0,
-            margin: const EdgeInsets.symmetric(vertical: 8.0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 70,
-                    height: 70,
+        ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: steps.length,
+            itemBuilder: (context, index) {
+              final step = steps[index];
+              return Card(
+                elevation: 2.0,
+                margin: const EdgeInsets.symmetric(vertical: 8.0),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "${step.stepName} (${step.productTypeExpected})",
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        step.recommendedProducts.isEmpty
+                            ? "No suitable products found for your profile."
+                            : "${step.recommendedProducts.length} product(s) recommended:",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontStyle: FontStyle.italic,
+                          color: step.recommendedProducts.isEmpty ? Colors.orangeAccent : Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      if (step.recommendedProducts.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text(
+                            "Try adjusting your skin concerns or check back later!",
+                            style: TextStyle(color: Colors.grey[700]),
+                          ),
+                        )
+                      else
+                        SizedBox(
+                          height: 240, // Height of the horizontal product list
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: step.recommendedProducts.length,
+                            itemBuilder: (context, productIndex) {
+                              final product = step.recommendedProducts[productIndex];
+                              return _buildProductCard(product);
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _buildProductCard(RecommendedProduct product) {
+     return SizedBox(
+      width: 180,
+      child: Card(
+        elevation: 1.5,
+        margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () {
+            print("Tapped on product: ${product.name}");
+            // TODO: Implement navigation to product details page
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(10.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: 110,
+                  width: double.infinity,
+                  child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
                       color: Colors.grey[200],
                     ),
-                    child: productFound && step.recommendedProduct!.imageUrl != null
+                    child: product.imageUrl != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: Image.network(
-                              step.recommendedProduct!.imageUrl!,
+                              product.imageUrl!,
                               fit: BoxFit.cover,
                               loadingBuilder: (context, child, progress) {
                                 if (progress == null) return child;
-                                return Center(child: CircularProgressIndicator(
-                                  value: progress.expectedTotalBytes != null
-                                      ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
-                                      : null,
-                                  strokeWidth: 2.0,
-                                ));
+                                return const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5)));
                               },
                               errorBuilder: (context, error, stackTrace) =>
-                                  Icon(Icons.broken_image, size: 30, color: Colors.grey[400]),
+                                  const Icon(Icons.broken_image, size: 40, color: Colors.grey),
                             ),
                           )
-                        : Icon(Icons.spa_outlined, size: 30, color: Colors.grey[400]), // Placeholder for no image or no product
+                        : const Icon(Icons.spa_outlined, size: 40, color: Colors.grey),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "${step.stepName}",
-                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                        ),
-                         Text(
-                          "(${step.productTypeExpected})",
-                          style: TextStyle(fontSize: 13, color: Colors.grey[600], fontStyle: FontStyle.italic),
-                        ),
-                        const SizedBox(height: 6),
-                        if (productFound) ...[
-                          Text(
-                            step.recommendedProduct!.name,
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (step.recommendedProduct!.brand != null)
-                            Text(
-                              "Brand: ${step.recommendedProduct!.brand!}",
-                              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                            ),
-                          if (step.recommendedProduct!.price != null)
-                            Text(
-                              "Price: \$${step.recommendedProduct!.price!.toStringAsFixed(2)}",
-                              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                            ),
-                        ] else
-                          const Text(
-                            "No suitable product found for your profile.",
-                            style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.orangeAccent),
-                          ),
-                      ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  product.name,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (product.brand != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3.0),
+                    child: Text(
+                      product.brand!,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                ],
-              ),
+                const Spacer(),
+                if (product.price != null)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      "\$${product.price!.toStringAsFixed(2)}",
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87),
+                    ),
+                  ),
+              ],
             ),
-          );
-        }).toList(),
-      ],
+          ),
+        ),
+      ),
     );
   }
 }

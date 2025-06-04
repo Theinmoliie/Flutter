@@ -46,7 +46,11 @@ flutter:
     - assets/skincare.png
     - assets/skincare2.jpeg
     - assets/google_logo.png
-    
+    - assets/skincare_routine_builder_logo.png
+    - assets/check_product_safety_rating_logo.png
+    - assets/skincare_product_suitability_logo.png
+    - assets/avatar.png
+
     - assets/models/skin_type_model16.tflite # Assuming you place models here ( 4 classes)
     - assets/models/skin_type_model32.tflite # Assuming you place models here ( 4 classes)
     - assets/labels/skin_type_labels(4_classes).txt # Assuming you place labels here ( 4 classes)

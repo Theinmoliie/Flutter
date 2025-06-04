@@ -1,41 +1,27 @@
-//SafetyRatingLandingScreen.dart
-
 import 'package:flutter/material.dart';
-import 'package:camera/camera.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
-import 'ProductSafety/capture_product.dart';
 import 'ProductSafety/search_product.dart';
 
 
-class SafetyRatingLandingScreen extends StatefulWidget {
+class Searchproducts extends StatefulWidget {
   final VoidCallback onSwitchToProfile; // Callback to switch to profile tab
 
   // Use super key for constructors
-  const SafetyRatingLandingScreen({super.key, required this.onSwitchToProfile});
+  const Searchproducts({super.key, required this.onSwitchToProfile});
 
   @override
-  _SafetyRatingLandingScreenState createState() => _SafetyRatingLandingScreenState();
+  _SearchproductsState createState() => _SearchproductsState();
 }
 
-class _SafetyRatingLandingScreenState extends State<SafetyRatingLandingScreen> {
+class _SearchproductsState extends State<Searchproducts> {
   final _supabase = Supabase.instance.client;
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _searchResults = [];
-  // Remove camera controller logic if not directly used for preview here
-  // CameraController? _cameraController;
-  // bool _isCameraInitialized = false;
-  final ImagePicker _imagePicker = ImagePicker();
-  File? _imageFile; // Consider if this state is still needed here
 
   @override
   void initState() {
     super.initState();
-    // Request permission if needed, but initialization might not be necessary here
-    _checkAndRequestCameraPermission();
-
     // Add listener to controller to update UI for clear button visibility
     // (Although onChanged calling setState often covers this implicitly)
     _searchController.addListener(_updateClearIconVisibility);
@@ -55,25 +41,10 @@ class _SafetyRatingLandingScreenState extends State<SafetyRatingLandingScreen> {
   void dispose() {
     _searchController.removeListener(_updateClearIconVisibility); // Remove listener
     _searchController.dispose();
-    // _cameraController?.dispose(); // Dispose if initialized
     super.dispose();
   }
 
-  Future<void> _checkAndRequestCameraPermission() async {
-    // Keep permission check logic
-    var status = await Permission.camera.status;
-    if (!status.isGranted) {
-       status = await Permission.camera.request();
-    }
-    if (!status.isGranted && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Camera permission is recommended.")));
-    }
-    // Initialization might be better done only when camera is actively needed
-  }
-
-  // Future<void> _initializeCamera() async { ... } // Keep if needed elsewhere
-
+  
   Future<void> _searchProducts(String query) async {
     // Clear results immediately if query is empty
     if (query.isEmpty) {
@@ -104,31 +75,6 @@ class _SafetyRatingLandingScreenState extends State<SafetyRatingLandingScreen> {
     }
   }
 
-  Future<void> _pickImage(ImageSource source) async {
-    try {
-       final pickedFile = await _imagePicker.pickImage(source: source);
-       if (pickedFile != null && mounted) { // Check mounted after await
-         File selectedImage = File(pickedFile.path);
-         // Navigate to StagingScreen (capture_product.dart)
-         // StagingScreen handles the processing now
-         Navigator.push(
-           context,
-           MaterialPageRoute(
-             builder: (context) => StagingScreen(
-               imageFile: selectedImage,
-               onProfileRequested: widget.onSwitchToProfile,
-             ),
-           ),
-         );
-       }
-    } catch (e) {
-       print("Error picking image: $e");
-       if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-             const SnackBar(content: Text("Failed to select image")));
-       }
-    }
-  }
 
 
   @override
@@ -193,32 +139,7 @@ class _SafetyRatingLandingScreenState extends State<SafetyRatingLandingScreen> {
               ),
               // --- END MODIFIED TextField ---
 
-              // --- Keep Center Column for Buttons ---
-              Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Capture Button
-                       ElevatedButton.icon( // Using icon button
-                        icon: const Icon(Icons.camera_alt, color: Colors.purple),
-                        label: const Text( "Capture Ingredients", style: TextStyle( fontSize: 18, color: Colors.purple, ), ),
-                        onPressed: () => _pickImage(ImageSource.camera),
-                        style: ElevatedButton.styleFrom( padding: const EdgeInsets.symmetric( horizontal: 30, vertical: 15, ), backgroundColor: Colors.white, shadowColor: Colors.purple.withOpacity(0.5), elevation: 5, shape: RoundedRectangleBorder( borderRadius: BorderRadius.circular(50), side: const BorderSide( color: Colors.purple, width: 2, ), ), ),
-                       ),
-                      const SizedBox(height: 25), // Increased spacing
-                      // Upload Button
-                      ElevatedButton.icon( // Using icon button
-                        icon: const Icon(Icons.upload_file, color: Colors.purple),
-                        label: const Text( "Upload Image", style: TextStyle( fontSize: 18, color: Colors.purple, ), ),
-                        onPressed: () => _pickImage(ImageSource.gallery),
-                        style: ElevatedButton.styleFrom( padding: const EdgeInsets.symmetric( horizontal: 40, vertical: 15, ), backgroundColor: Colors.white, shadowColor: Colors.purple.withOpacity(0.5), elevation: 5, shape: RoundedRectangleBorder( borderRadius: BorderRadius.circular(50), side: const BorderSide( color: Colors.purple, width: 2, ), ), ),
-                       ),
-                    ],
-                  ),
-                ),
-              ),
-              // --- END Center Column ---
+            
             ],
           ),
 
@@ -309,7 +230,7 @@ class _SafetyRatingLandingScreenState extends State<SafetyRatingLandingScreen> {
                                           productName: product['Product_Name'],
                                           brand: product['Brand'],
                                           imageUrl: product['Image_Url'] ?? '',
-                                          
+                                         
                                         ),
                                       ),
                                     );

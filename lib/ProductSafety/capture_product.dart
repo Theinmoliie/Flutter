@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:string_similarity/string_similarity.dart';
-// import 'package:provider/provider.dart'; // Not directly used by _StagingScreenState
 import '../util/safetyscore_util.dart';
 import 'product_analysis.dart';
 

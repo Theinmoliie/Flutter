@@ -28,6 +28,7 @@ dependencies:
   http: ^1.3.0
   app_links: ^6.4.0
   tflite_flutter: 0.10.4
+  collection: ^1.19.1
   
 
 dev_dependencies:
@@ -45,5 +46,11 @@ flutter:
     - assets/skincare.png
     - assets/skincare2.jpeg
     - assets/google_logo.png
-    - assets/models/skin_type_model.tflite # Assuming you place models here
-    - assets/labels/skin_type_labels.txt # Assuming you place labels here
+    
+    - assets/models/skin_type_model16.tflite # Assuming you place models here ( 4 classes)
+    - assets/models/skin_type_model32.tflite # Assuming you place models here ( 4 classes)
+    - assets/labels/skin_type_labels(4_classes).txt # Assuming you place labels here ( 4 classes)
+
+    - assets/models/3_class_best_float16.tflite # New skin type detection model ( 3 classes)
+    - assets/models/3_class_best_float32.tflite # New skin type detection model ( 3 classes)
+    - assets/labels/skin_type_labels(3_classes).txt # Assuming you place labels here ( 3 classes)

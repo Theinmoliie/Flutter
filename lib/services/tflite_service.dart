@@ -13,8 +13,8 @@ class TfliteService {
   Interpreter? _skinInterpreter;
   List<String>? _skinLabels;
   bool _isSkinModelLoaded = false;
-  static const String _skinModelPath = 'assets/models/skin_type_model.tflite';
-  static const String _skinLabelPath = 'assets/labels/skin_type_labels.txt';
+  static const String _skinModelPath = 'assets/models/3_class_best_float32.tflite';
+  static const String _skinLabelPath = 'assets/labels/skin_type_labels(3_classes).txt';
   static const int _skinInputSize = 224;
 
   TfliteService() {

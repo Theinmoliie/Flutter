@@ -17,7 +17,8 @@ class SkincareRoutineService {
   // --- IMPORTANT: REPLACE 'YOUR_COMPUTER_IP_ADDRESS' with your actual IP ---
   // ---      when testing with a physical device on the same Wi-Fi.     ---
   static const String _localDevAndroidEmulatorBaseUrl = 'http://10.0.2.2:8000';
-  static const String _localDevPhysicalOrIOSBaseUrl = 'http://192.168.1.28:8000'; // <<<<<<< CHANGE THIS
+  static const String _localDevPhysicalOrIOSBaseUrl = 'http://192.168.185.43:8000'; // <<<<<<< CHANGE THIS
+
   static const String _productionBaseUrl = 'https://your-deployed-api.com'; // <<<<<<< CHANGE THIS IF DEPLOYED
 
   String get _baseUrl {

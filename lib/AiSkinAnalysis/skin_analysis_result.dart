@@ -117,13 +117,13 @@ class AnalysisPage extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Confidence: ${(confidence * 100).toStringAsFixed(1)}%',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                     color: colorScheme.onSurfaceVariant.withOpacity(0.8),
-                  ),
-                ),
+                // const SizedBox(height: 8),
+                // Text(
+                //   'Confidence: ${(confidence * 100).toStringAsFixed(1)}%',
+                //   style: theme.textTheme.bodyMedium?.copyWith(
+                //      color: colorScheme.onSurfaceVariant.withOpacity(0.8),
+                //   ),
+                // ),
               ],
             ),
           ),

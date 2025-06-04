@@ -250,6 +250,107 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
     );
   }
 
+
+  // --- MODIFIED: _buildUserProfileSummary with icons ---
+  Widget _buildUserProfileSummary() {
+    final profileProvider = Provider.of<SkinProfileProvider>(context, listen: false);
+
+    String skinType = profileProvider.userSkinType ?? "Not Set";
+    String sensitivity = profileProvider.userSensitivity ?? "Not Set";
+    String concerns = profileProvider.userConcerns.isEmpty
+        ? "None"
+        : profileProvider.userConcerns.join(', ');
+
+    TextStyle valueStyle = TextStyle(color: Colors.grey[800], fontSize: 14);
+    Color iconColor = Theme.of(context).colorScheme.primary; // Use primary color for icons
+
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      margin: const EdgeInsets.only(bottom: 16.0, left: 16.0, right: 16.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row( // Title with an icon
+            children: [
+              Icon(Icons.account_circle_outlined, color: iconColor, size: 26),
+              const SizedBox(width: 8),
+              Text(
+                "Your Current Profile",
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const Divider(height: 20, thickness: 1),
+          _buildProfileDetailRow(
+            icon: Icons.water_drop_outlined, // Example icon for skin type
+            iconColor: iconColor,
+            label: "Skin Type:",
+            value: skinType,
+            valueStyle: valueStyle,
+          ),
+          const SizedBox(height: 8),
+          _buildProfileDetailRow(
+            icon: Icons.shield_outlined, // Example icon for sensitivity
+            iconColor: iconColor,
+            label: "Sensitivity:",
+            value: sensitivity,
+            valueStyle: valueStyle,
+          ),
+          const SizedBox(height: 8),
+          _buildProfileDetailRow(
+            icon: Icons.healing_outlined, // Example icon for concerns
+            iconColor: iconColor,
+            label: "Concerns:",
+            value: concerns,
+            valueStyle: valueStyle,
+            isMultiline: true, // Allow concerns to wrap if long
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- NEW HELPER for profile detail rows ---
+  Widget _buildProfileDetailRow({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+    required TextStyle valueStyle,
+    bool isMultiline = false,
+  }) {
+    return Row(
+      crossAxisAlignment: isMultiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      children: [
+        Icon(icon, color: iconColor, size: 20),
+        const SizedBox(width: 10),
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5)),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            value,
+            style: valueStyle,
+            softWrap: true, // Ensures text wraps
+          ),
+        ),
+      ],
+    );
+  }
+
+
+
   // --- MODIFIED: Main body builder to include toggle ---
   Widget _buildBodyWithToggle() {
     if (_isLoading) {
@@ -300,17 +401,21 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
     }
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch, // Ensure children can fill width
       children: [
-        _buildAmPmToggle(), // Add the toggle button
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0), // Adjusted top padding
+        _buildAmPmToggle(), // This stays fixed at the top
+        Expanded( // This makes the ListView below take all remaining vertical space
+          child: ListView( // This single ListView will contain both summary and routine steps
+            padding: const EdgeInsets.only(bottom: 16.0), // Add padding to bottom of scrollable area
             children: [
-              // Conditionally render the selected routine
-              if (_selectedRoutineTime == RoutineTime.morning)
-                _buildRoutineSection("Morning Routine", _skincareRoutine!.morningRoutine)
-              else // It must be night
-                _buildRoutineSection("Night Routine", _skincareRoutine!.nightRoutine),
+              _buildUserProfileSummary(), // Profile summary is now a child of this ListView
+              const SizedBox(height: 16), // Space between summary and routine
+              Padding( // Add horizontal padding for the routine section
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: _selectedRoutineTime == RoutineTime.morning
+                    ? _buildRoutineSection("Morning Routine", _skincareRoutine!.morningRoutine)
+                    : _buildRoutineSection("Night Routine", _skincareRoutine!.nightRoutine),
+              ),
             ],
           ),
         ),

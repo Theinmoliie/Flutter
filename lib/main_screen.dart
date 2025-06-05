@@ -1,8 +1,5 @@
 // main_screen.dart
 import 'package:flutter/material.dart';
-import 'package:skinsafe/searchProducts.dart';
-// ... other imports
-import 'home.dart'; // Your original HomeScreen
 import 'UserProfile/multi_screen.dart';
 import 'AiSkinAnalysis/selfie.dart';
 import 'routine_display_screen.dart';

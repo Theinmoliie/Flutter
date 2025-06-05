@@ -1,9 +1,16 @@
+// NewHomeScreen.dart
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'home.dart';
-import 'searchProducts.dart';
-import 'routine_display_screen.dart';
 
+// Import the new input screens
+import 'ProductAnalysis/ProductSafety/safety_input_screen.dart';   // Adjust path as per your project structure
+import 'ProductAnalysis/ProductSuitability/suitability_input_screen.dart'; // Adjust path as per your project structure
+
+import 'routine_display_screen.dart'; // Assuming this is still correct and used
+
+// Removed old/unused imports:
+// import 'home.dart'; // If not used
+// import 'searchProducts.dart'; // This was SafetyRatingLandingScreen
 
 class NewHomeScreen extends StatefulWidget {
   final VoidCallback onSwitchToProfile;
@@ -22,6 +29,8 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
     try {
       await _supabase.auth.signOut();
       print("User logged out successfully from NewHomeScreen.");
+      // After logout, you might want to navigate to a login screen
+      // Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => LoginScreen()), (route) => false);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -35,68 +44,66 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6FF), // Light lavender background
       body: Column(
         children: [
-          _buildHeader(context), // Pass context to _buildHeader
+          _buildHeader(context),
           Expanded(
-            child: SingleChildScrollView( // Makes the content below scrollable
-            child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 50.0, vertical: 20.0),
-              child: Column(
-                mainAxisAlignment:
-                    MainAxisAlignment.start, // Align cards to the top
-                children: [
-                  const SizedBox(height: 20),
-                  _buildFeatureCard(
-                    context,
-                    imagePath: 'assets/skincare_product_suitability_logo.png',
-                    title: "Check Product Suitability",
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => SafetyRatingLandingScreen(
-                              onSwitchToProfile: widget.onSwitchToProfile),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 25),
-                  _buildFeatureCard(
-                    context,
-                    imagePath: 'assets/skincare_routine_builder_logo.png',
-                    title: "View Skincare Routine",
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) =>
-                                const RoutineDisplayScreen()),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 25),
-                  _buildFeatureCard(
-                    context,
-                    imagePath: 'assets/check_product_safety_rating_logo.png',
-                    title: "Check Product Safety Rating",
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => SafetyRatingLandingScreen(
-                             onSwitchToProfile: widget.onSwitchToProfile),
-                        ),
-                      );
-                    },
-                  ),
-                ],
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 40.0, vertical: 20.0), // Adjusted padding
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 20),
+                    _buildFeatureCard(
+                      context,
+                      imagePath: 'assets/skincare_product_suitability_logo.png',
+                      title: "Check Product Suitability",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SuitabilityInputScreen( // <-- NAVIGATE TO NEW SCREEN
+                                onSwitchToProfile: widget.onSwitchToProfile),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 25),
+                    _buildFeatureCard(
+                      context,
+                      imagePath: 'assets/skincare_routine_builder_logo.png',
+                      title: "View Skincare Routine",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) =>
+                                  const RoutineDisplayScreen()),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 25),
+                    _buildFeatureCard(
+                      context,
+                      imagePath: 'assets/check_product_safety_rating_logo.png',
+                      title: "Check Product Safety Rating",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SafetyInputScreen( // <-- NAVIGATE TO NEW SCREEN
+                                onSwitchToProfile: widget.onSwitchToProfile),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
-            ),
             ),
           ),
         ],
@@ -105,19 +112,17 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    // Get the colorScheme from the context
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top +
-            15, // Status bar padding + custom padding
+        top: MediaQuery.of(context).padding.top + 15,
         bottom: 20,
         left: 20,
         right: 10,
       ),
-      decoration: BoxDecoration( // MODIFIED BoxDecoration
-        color: colorScheme.primary, // <-- USE THEME'S PRIMARY COLOR HERE
+      decoration: BoxDecoration(
+        color: colorScheme.primary,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(25),
           bottomRight: Radius.circular(25),
@@ -140,21 +145,22 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
                 children: [
                   const CircleAvatar(
                     radius: 30,
-                    backgroundImage: AssetImage('assets/avatar.png'),
+                    backgroundImage: AssetImage('assets/avatar.png'), // Ensure asset exists
                     backgroundColor: Colors.white24,
                   ),
                   const SizedBox(width: 15),
-                  const Expanded(
+                  const Expanded( // Ensure text doesn't overflow
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Hello Molliie!",
+                          "Hello Molliie!", // Consider fetching actual user name
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                         SizedBox(height: 2),
                         Text(
@@ -168,7 +174,7 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
                     ),
                   ),
                   const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 20),
-                  const SizedBox(width: 40), // Increased space before logout
+                  const SizedBox(width: 10), // Adjusted space before logout
                 ],
               ),
             ),
@@ -193,7 +199,7 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: double.infinity,
+        width: double.infinity, // Takes full width of the parent padding
         padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 15.0),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -208,18 +214,20 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
           ],
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min, // Important for Column inside SingleChildScrollView
           children: [
             Image.asset(
               imagePath,
-              height: 130,
+              height: 100, // Slightly reduced height for better balance
               fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) {
+                print("Error loading asset image $imagePath: $error");
                 return Container(
-                  height: 130,
+                  height: 100,
                   color: Colors.grey[200],
                   child: Center(
-                      child: Icon(Icons.image_not_supported,
-                          size: 50, color: Colors.grey[400])),
+                      child: Icon(Icons.broken_image_outlined, // Changed icon
+                          size: 40, color: Colors.grey[400])),
                 );
               },
             ),
@@ -228,7 +236,7 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
               title,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 16, // Or use Theme.of(context).textTheme.titleMedium
                 fontWeight: FontWeight.w600,
                 color: Colors.grey[800],
               ),

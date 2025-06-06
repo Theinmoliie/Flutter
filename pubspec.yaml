@@ -29,7 +29,7 @@ dependencies:
   app_links: ^6.4.0
   tflite_flutter: 0.10.4
   collection: ^1.19.1
-  
+  crop_image: ^1.0.10  # Check pub.dev for the latest stable version
 
 dev_dependencies:
   flutter_test:

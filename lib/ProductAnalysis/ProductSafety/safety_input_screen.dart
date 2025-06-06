@@ -1,12 +1,14 @@
 // safety_input_screen.dart
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart'; // Import image_cropper
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 
 import 'ocr_safety_display_screen.dart';
 import 'safety_rating_display_screen.dart';
+import 'cropping_screen.dart';
 
 class SafetyInputScreen extends StatefulWidget {
   final VoidCallback onSwitchToProfile;
@@ -22,6 +24,7 @@ class _SafetyInputScreenState extends State<SafetyInputScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _searchResults = [];
   final ImagePicker _imagePicker = ImagePicker();
+  final ImageCropper _imageCropper = ImageCropper(); // Instantiate ImageCropper
 
   @override
   void initState() {
@@ -74,28 +77,48 @@ class _SafetyInputScreenState extends State<SafetyInputScreen> {
     }
   }
 
-  Future<void> _pickImage(ImageSource source) async {
-    try {
-      final pickedFile = await _imagePicker.pickImage(source: source);
-      if (pickedFile != null && mounted) {
-        File selectedImage = File(pickedFile.path);
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => OcrSafetyDisplayScreen(
-              imageFile: selectedImage,
-            ),
+   Future<File?> _navigateToCropScreen(File imageFile) async {
+  final File? croppedImage = await Navigator.push<File?>(
+    context,
+    MaterialPageRoute(
+      builder: (context) => CroppingScreen(imageFile: imageFile),
+    ),
+  );
+  return croppedImage;
+}
+
+Future<void> _pickImage(ImageSource source) async {
+  try {
+    final pickedFile = await _imagePicker.pickImage(source: source);
+    if (pickedFile == null) return;
+
+    File imageToProcess = File(pickedFile.path);
+
+    // Navigate to your custom cropping screen
+    final File? croppedImageFile = await _navigateToCropScreen(imageToProcess); // MODIFIED
+    if (croppedImageFile == null) {
+      print("Cropping was cancelled or failed.");
+      return;
+    }
+
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OcrSafetyDisplayScreen(
+            imageFile: croppedImageFile,
           ),
-        );
-      }
-    } catch (e) {
-      print("Error picking image: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Failed to select image")));
-      }
+        ),
+      );
+    }
+  } catch (e) {
+    print("Error picking or navigating to crop screen: $e");
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to process image: ${e.toString()}")));
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -113,14 +136,10 @@ class _SafetyInputScreenState extends State<SafetyInputScreen> {
         backgroundColor: colorScheme.primary,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      // resizeToAvoidBottomInset is true by default, which is what we want.
-      // The Scaffold will resize when the keyboard appears.
       body: Stack(
         children: [
-          
-          Column( // Main screen Column: Search Bar + Expanded section
+          Column(
             children: [
-              // --- SEARCH BAR --- (Stays fixed at the top of this Column)
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
                 child: TextField(
@@ -160,18 +179,13 @@ class _SafetyInputScreenState extends State<SafetyInputScreen> {
                   onSubmitted: _searchProducts,
                 ),
               ),
-
-              // --- EXPANDED SECTION FOR BUTTONS AND DECORATIVE IMAGE ---
               Expanded(
-                // This Expanded widget will take the remaining vertical space
-                // after the Search Bar.
-                child: SingleChildScrollView( // Make the content INSIDE Expanded scrollable
+                child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 40.0),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center, // Center content if it's shorter than view
-                    mainAxisSize: MainAxisSize.min, // Important for Column in SingleChildScrollView
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // "Or" text
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 15.0),
                         child: Text(
@@ -185,7 +199,6 @@ class _SafetyInputScreenState extends State<SafetyInputScreen> {
                           ),
                         ),
                       ),
-                      // Capture Button
                       ElevatedButton.icon(
                         icon: const Icon(Icons.camera_alt, color: Colors.deepPurpleAccent),
                         label: const Text("Capture Ingredients", style: TextStyle(fontSize: 17, color: Colors.deepPurpleAccent, fontWeight: FontWeight.w600)),
@@ -203,7 +216,6 @@ class _SafetyInputScreenState extends State<SafetyInputScreen> {
                         ),
                       ),
                       const SizedBox(height: 15),
-                      // "Or" text
                       Text(
                         "Or",
                         style: TextStyle(
@@ -215,7 +227,6 @@ class _SafetyInputScreenState extends State<SafetyInputScreen> {
                         ),
                       ),
                       const SizedBox(height: 15),
-                      // Upload Button
                       ElevatedButton.icon(
                         icon: const Icon(Icons.upload_file, color: Colors.deepPurpleAccent),
                         label: const Text("Upload Image", style: TextStyle(fontSize: 17, color: Colors.deepPurpleAccent, fontWeight: FontWeight.w600)),
@@ -232,26 +243,19 @@ class _SafetyInputScreenState extends State<SafetyInputScreen> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 25),
-
-                    Text(
+                      Text(
                         "Search for a product or capture/upload ingredient label to check its safety rating",
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
                       ),
-                      
-
-                      // Decorative Image
-                      // Using a SizedBox to ensure it has some space, will be pushed down if content above is short
-                      SizedBox(height: MediaQuery.of(context).size.height * 0.05), // Some spacing
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.05),
                       Padding(
                         padding: const EdgeInsets.only(top: 20.0, bottom: 20.0),
                         child: Opacity(
                           opacity: 0.5,
                           child: SizedBox(
                             width: desiredImageWidth,
-                            // height: 100, // Max height if needed, otherwise let it scale
                             child: Image.asset(
                               "assets/skincare.png",
                               fit: BoxFit.contain,
@@ -269,24 +273,21 @@ class _SafetyInputScreenState extends State<SafetyInputScreen> {
               ),
             ],
           ),
-
-          // --- Search Results Overlay ---
           if (_searchResults.isNotEmpty)
             Positioned.fill(
-              top: 65, // Below search bar (adjust based on AppBar and TextField height)
-              left: 10, // Match horizontal padding of the Column
-              right: 10, // Match horizontal padding of the Column
+              top: 65, 
+              left: 10, 
+              right: 10, 
               child: GestureDetector(
                 onTap: () {
                   if (mounted) setState(() => _searchResults.clear());
                   FocusScope.of(context).unfocus();
                 },
                 child: Container(
-                  color: Colors.black.withOpacity(0.1), // For the area outside the results list
+                  color: Colors.black.withOpacity(0.1),
                   child: Align(
                     alignment: Alignment.topCenter,
                     child: Container(
-                      // Removed horizontal margin here as Positioned.fill with left/right handles it
                       margin: const EdgeInsets.only(top: 5),
                       constraints: BoxConstraints(
                         maxHeight: MediaQuery.of(context).size.height * 0.5,

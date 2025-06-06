@@ -128,7 +128,7 @@ class _OcrSafetyDisplayScreenState extends State<OcrSafetyDisplayScreen> {
       while (hasMore) {
         pageCount++;
         setStateIfMounted(() {
-           _recognizedTextState = "Fetching safety data... (Page $pageCount)";
+           _recognizedTextState = "Fetching safety data...";
         });
         try {
           final response = await supabase

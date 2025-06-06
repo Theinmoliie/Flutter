@@ -112,20 +112,20 @@ class MainScreenState extends State<MainScreen> {
         index: _selectedIndex,
         children: _screens,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
-          BottomNavigationBarItem(icon: Icon(Icons.list_alt_outlined), label: "Routine"),
-          BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: "Selfie"),
-        ],
-        backgroundColor: Colors.white,
-        selectedItemColor: colorScheme.primary,
-        unselectedItemColor: Colors.grey[600],
-        type: BottomNavigationBarType.fixed,
-      ),
+      // bottomNavigationBar: BottomNavigationBar(
+      //   currentIndex: _selectedIndex,
+      //   onTap: _onItemTapped,
+      //   items: const [
+      //     BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+      //     BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+      //     BottomNavigationBarItem(icon: Icon(Icons.list_alt_outlined), label: "Routine"),
+      //     BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: "Selfie"),
+      //   ],
+      //   backgroundColor: Colors.white,
+      //   selectedItemColor: colorScheme.primary,
+      //   unselectedItemColor: Colors.grey[600],
+      //   type: BottomNavigationBarType.fixed,
+      // ),
     );
   }
 }

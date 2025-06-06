@@ -26,7 +26,7 @@ class AnalysisPage extends StatelessWidget {
         title: const Text('Skin Analysis Result'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+          onPressed: () => Navigator.of(context).pop(),
         ),
         // Removed theme access here, let AppBar use default theme or set explicitly if needed
         // backgroundColor: colorScheme.primary,
@@ -145,19 +145,41 @@ class AnalysisPage extends StatelessWidget {
         const SizedBox(height: 24), // Increase spacing before button
 
          // Done Button - Now context is available
-         ElevatedButton(
-            onPressed: () {
-               // Now 'context' is defined and can be used here
-               Navigator.of(context).popUntil((route) => route.isFirst);
-            },
-            style: ElevatedButton.styleFrom(
-               // Access colorScheme defined within this method
-               backgroundColor: colorScheme.primary,
-               foregroundColor: colorScheme.onPrimary,
-               padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12)
+        //  ElevatedButton(
+        //     onPressed: () {
+        //        // Now 'context' is defined and can be used here
+        //        Navigator.of(context).popUntil((route) => route.isFirst);
+        //     },
+        //     style: ElevatedButton.styleFrom(
+        //        // Access colorScheme defined within this method
+        //        backgroundColor: colorScheme.primary,
+        //        foregroundColor: colorScheme.onPrimary,
+        //        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12)
+        //     ),
+        //     child: const Text('Done')
+        //  )
+
+
+        //NEW
+        ElevatedButton(
+          onPressed: () {
+            // *** THIS IS THE CRITICAL CHANGE ***
+            // Pop the analysis screens and return the resulting skinType string.
+            Navigator.of(context).pop(skinType);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: colorScheme.primary,
+            foregroundColor: colorScheme.onPrimary,
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
             ),
-            child: const Text('Done')
-         )
+            textStyle: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          child: const Text('Confirm and Continue'), // Changed text for clarity
+        )
       ],
     );
   }

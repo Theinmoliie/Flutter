@@ -62,8 +62,10 @@ class _ResultPageState extends State<ResultPage> {
       if (mounted) Navigator.pop(context);
       if (!mounted) return;
 
-      if (result['success'] == true) {
-        Navigator.pushReplacement(
+       if (result['success'] == true) {
+        // *** THE FIX: Change from pushReplacement to push ***
+        // We now need to await the result from AnalysisPage.
+        final String? finalResult = await Navigator.push<String>( // Await the result
           context,
           MaterialPageRoute(
             builder: (context) => AnalysisPage(
@@ -74,6 +76,13 @@ class _ResultPageState extends State<ResultPage> {
             ),
           ),
         );
+        
+        // If AnalysisPage popped with a result, we pop ourselves
+        // and pass that result down the chain.
+        if (finalResult != null && mounted) {
+            Navigator.of(context).pop(finalResult);
+        }
+
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

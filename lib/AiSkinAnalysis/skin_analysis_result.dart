@@ -178,7 +178,7 @@ class AnalysisPage extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-          child: const Text('Confirm and Continue'), // Changed text for clarity
+          child: const Text('Save'), // Changed text for clarity
         )
       ],
     );

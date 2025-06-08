@@ -1,7 +1,4 @@
-// .TFLITE MODEL IMPLEMENTATION
-//_______________________________________
-
-/// lib/review_selfie.dart
+// lib/review_selfie.dart
 import 'dart:io';
 import 'dart:ui'; // Required for Rect
 import 'package:flutter/foundation.dart'; // For kDebugMode
@@ -32,7 +29,8 @@ class _ResultPageState extends State<ResultPage> {
   @override
   void initState() {
     super.initState();
-    // _tfliteService.loadModels(); // Called in service constructor
+    // Load models when the page is initialized to ensure they are ready.
+    _tfliteService.loadModels(); 
   }
 
   @override
@@ -44,6 +42,8 @@ class _ResultPageState extends State<ResultPage> {
   Future<void> _analyseSkin() async {
     if (_isLoading) return;
     setState(() { _isLoading = true; });
+    
+    // Show a loading indicator while processing
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -53,51 +53,55 @@ class _ResultPageState extends State<ResultPage> {
     try {
       final File imageFile = File(widget.imagePath);
 
-      // Call the TFLite service, passing the bounding box
-      final result = await _tfliteService.predictImage(
-        imageFile,
-        widget.faceBoundingBox, // Pass the detected bounding box
+      // Call the TFLite service, which now returns a nullable Prediction object.
+      final Prediction? result = await _tfliteService.predictImage(
+        imageFile: imageFile,
+        faceBoundingBox: widget.faceBoundingBox,
       );
 
+      // Dismiss the loading dialog
       if (mounted) Navigator.pop(context);
       if (!mounted) return;
 
-       if (result['success'] == true) {
-        // *** THE FIX: Change from pushReplacement to push ***
-        // We now need to await the result from AnalysisPage.
-        final String? finalResult = await Navigator.push<String>( // Await the result
+      // *** THE FIX IS HERE: Check if the result is not null ***
+      if (result != null) {
+        // If we have a valid result, navigate to the AnalysisPage.
+        // We need to await the final result from AnalysisPage if the user confirms.
+        final String? finalResult = await Navigator.push<String>(
           context,
           MaterialPageRoute(
             builder: (context) => AnalysisPage(
-              skinType: result['skin_type'],
-              confidence: result['confidence'],
+              // Pass the properties from the Prediction object
+              skinType: result.label,
+              confidence: result.confidence,
               imagePath: widget.imagePath,
               isFrontCamera: widget.isFrontCamera,
             ),
           ),
         );
         
-        // If AnalysisPage popped with a result, we pop ourselves
-        // and pass that result down the chain.
+        // If AnalysisPage popped with a result (meaning the user saved it),
+        // we pop this page as well and pass that result down the navigation stack.
         if (finalResult != null && mounted) {
             Navigator.of(context).pop(finalResult);
         }
 
       } else {
+        // If result is null, it means prediction failed in the service.
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Analysis failed: ${result['error'] ?? 'Unknown TFLite error'}'),
+          const SnackBar(
+            content: Text('Skin analysis failed. Please try again.'),
             backgroundColor: Colors.redAccent,
           ),
         );
         if (kDebugMode) {
-          debugPrint("[ReviewScreen] TFLite Error: ${result['error']}");
+          debugPrint("[ReviewScreen] TFLite service returned a null result.");
         }
       }
     } catch (e, stackTrace) {
       if (mounted) Navigator.pop(context);
       if (mounted) {
-        debugPrint("[ReviewScreen] Unexpected error: $e\n$stackTrace");
+        debugPrint("[ReviewScreen] Unexpected error during analysis: $e\n$stackTrace");
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('An unexpected error occurred. Please try again.'),

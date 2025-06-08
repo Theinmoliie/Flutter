@@ -1,15 +1,13 @@
-// lib/analysis_camera_page.dart
+// lib/AiSkinAnalysis/analysis_camera_page.dart
+import 'dart:async';
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'review_selfie.dart'; // This is your ResultPage file
+import 'review_selfie.dart';
 import 'selfie_quality_checker.dart';
 
 class AnalysisCameraPage extends StatefulWidget {
-  /// Callback that returns the final skin type name (e.g., "Oily") after successful analysis.
   final Function(String skinTypeName) onAnalysisComplete;
-
-  /// Callback to handle the back button press, passed from the parent.
   final VoidCallback? onBackPressed;
 
   const AnalysisCameraPage({
@@ -30,12 +28,17 @@ class _AnalysisCameraPageState extends State<AnalysisCameraPage> {
   final double guideBoxWidth = 250;
   final double guideBoxHeight = 350;
 
+  // --- State variable for the bottom error message bar ---
+  String? _bottomErrorText;
+
   @override
   void initState() {
     super.initState();
     _initializeCamera();
   }
-
+  
+  // All other methods like _initializeCamera, _captureImage, and dispose remain the same.
+  // I will omit them here for brevity but they should be kept in your file.
   Future<void> _initializeCamera() async {
     try {
       final cameras = await availableCameras();
@@ -47,38 +50,27 @@ class _AnalysisCameraPageState extends State<AnalysisCameraPage> {
         }
         return;
       }
-
       CameraDescription frontCamera;
       try {
         frontCamera = cameras.firstWhere(
           (cam) => cam.lensDirection == CameraLensDirection.front,
         );
       } catch (e) {
-        // Fallback to the first camera if no front camera is found
         frontCamera = cameras.first;
       }
-
       _controller = CameraController(
         frontCamera,
         ResolutionPreset.high,
         imageFormatGroup: Platform.isAndroid ? ImageFormatGroup.yuv420 : ImageFormatGroup.bgra8888,
         enableAudio: false,
       );
-
       await _controller.initialize();
-
-      // Lock focus and exposure for consistent images
       try {
         await _controller.setFocusMode(FocusMode.locked);
-      } catch (e) {
-        debugPrint("Could not set focus mode to locked: $e");
-      }
+      } catch (e) { debugPrint("Could not set focus mode to locked: $e"); }
       try {
         await _controller.setExposureMode(ExposureMode.locked);
-      } catch (e) {
-        debugPrint("Could not set exposure mode to locked: $e");
-      }
-
+      } catch (e) { debugPrint("Could not set exposure mode to locked: $e"); }
       if (mounted) {
         setState(() => _isCameraReady = true);
       }
@@ -118,7 +110,13 @@ class _AnalysisCameraPageState extends State<AnalysisCameraPage> {
     super.dispose();
   }
 
+  // --- MODIFIED: _handleCapture now controls the bottom error bar ---
   Future<void> _handleCapture() async {
+    // Clear any previous error message when starting a new capture
+    setState(() {
+      _bottomErrorText = null;
+    });
+
     final imagePath = await _captureImage();
     if (imagePath == null || !mounted) return;
 
@@ -138,19 +136,22 @@ class _AnalysisCameraPageState extends State<AnalysisCameraPage> {
     if (!mounted) return;
 
     if (qualityResult.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(qualityResult.error!),
-          backgroundColor: Colors.orangeAccent,
-          duration: const Duration(seconds: 4),
-        ),
-      );
+      // **THE FIX IS HERE**: Update the state to show the error at the bottom
+      setState(() {
+        _bottomErrorText = qualityResult.error;
+      });
+      // Clear the error message after a few seconds
+      Timer(const Duration(seconds: 4), () {
+        if (mounted) {
+          setState(() {
+            _bottomErrorText = null;
+          });
+        }
+      });
       return;
     }
 
     if (qualityResult.isValid) {
-      // Navigate to the review/analysis flow and AWAIT the final result.
-      // The result is expected to be the skin type name (String) popped from AnalysisPage.
       final String? analysisResult = await Navigator.push<String>(
         context,
         MaterialPageRoute(
@@ -162,56 +163,72 @@ class _AnalysisCameraPageState extends State<AnalysisCameraPage> {
         ),
       );
 
-      // If we received a result, the user completed the flow successfully.
       if (analysisResult != null && mounted) {
-        // Pass the result up to the parent widget (MultiPageSkinProfileScreen).
         widget.onAnalysisComplete(analysisResult);
       }
     } else {
-      // This is a fallback case, as qualityResult.error should have been caught.
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Could not get face details. Please try again.")),
-      );
+      setState(() {
+        _bottomErrorText = "Could not get face details. Please try again.";
+      });
     }
   }
   
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     if (!_isCameraReady) {
-      // Loading state while camera initializes
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: Colors.black,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(color: Colors.white),
-              SizedBox(height: 16),
-              Text("Preparing Camera...", style: TextStyle(color: Colors.white)),
+              const CircularProgressIndicator(color: Colors.white),
+              const SizedBox(height: 16),
+              Text("Preparing Camera...", style: const TextStyle(color: Colors.white)),
             ],
           ),
         ),
       );
     }
-
-    // Main camera view UI
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        SizedBox.expand(
-          child: Transform(
+    
+    // --- **NEW RESTRUCTURED BUILD METHOD** ---
+     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Skin Analysis Camera'),
+        // Use the colorScheme for a consistent look
+        backgroundColor: colorScheme.primary, 
+        foregroundColor: colorScheme.onPrimary,
+        leading: widget.onBackPressed != null
+            ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: widget.onBackPressed)
+            : null,
+      ),
+      backgroundColor: Colors.black, // The background behind the camera should be black
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Camera Preview (flipped for selfie)
+          Transform(
             alignment: Alignment.center,
-            transform: Matrix4.identity()..scale(-1.0, 1.0, 1.0), // Flip for selfie view
+            transform: Matrix4.identity()..scale(-1.0, 1.0, 1.0),
             child: CameraPreview(_controller),
           ),
-        ),
-        _buildCaptureGuidelines(),
-        _buildGuidedBox(),
-        _buildCaptureButton(),
-      ],
+          
+          // Face Guide Overlay
+          _buildGuidedBox(),
+          
+          // Top Guide Box
+          _buildCaptureGuidelines(),
+
+          // Bottom Bar with Capture Button and Error Message
+          _buildBottomBar(),
+        ],
+      ),
     );
   }
 
+  // Helper for the face outline
   Widget _buildGuidedBox() {
     return Center(
       child: Container(
@@ -225,6 +242,7 @@ class _AnalysisCameraPageState extends State<AnalysisCameraPage> {
     );
   }
 
+  // Helper for the informational guide at the top
   Widget _buildCaptureGuidelines() {
     return Positioned(
       top: 10,
@@ -235,7 +253,6 @@ class _AnalysisCameraPageState extends State<AnalysisCameraPage> {
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.5),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -266,6 +283,7 @@ class _AnalysisCameraPageState extends State<AnalysisCameraPage> {
     );
   }
 
+  // Helper for individual guide items
   Widget _buildGuideItem(IconData icon, String text) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -277,19 +295,50 @@ class _AnalysisCameraPageState extends State<AnalysisCameraPage> {
     );
   }
 
-  Widget _buildCaptureButton() {
+  // --- **NEW: Widget for the entire bottom bar section** ---
+  Widget _buildBottomBar() {
     return Positioned(
-      bottom: 40,
+      bottom: 0,
       left: 0,
       right: 0,
-      child: Center(
-        child: FloatingActionButton.large(
-          backgroundColor: Colors.white,
-          onPressed: _isCapturing ? null : _handleCapture,
-          child: _isCapturing
-              ? const CircularProgressIndicator(color: Colors.black)
-              : const Icon(Icons.camera_alt, color: Colors.black, size: 40),
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // White container for the capture button
+          Container(
+            height: 100, // Adjust height as needed
+            width: double.infinity,
+            color: Colors.white,
+            child: Center(
+              child: SizedBox(
+                width: 70,
+                height: 70,
+                child: FloatingActionButton(
+                  backgroundColor: Colors.white,
+                  onPressed: _isCapturing ? null : _handleCapture,
+                  elevation: 2.0,
+                  shape: CircleBorder(side: BorderSide(color: Colors.grey.shade300, width: 2)),
+                  child: _isCapturing
+                      ? const CircularProgressIndicator(color: Colors.black)
+                      : const Icon(Icons.camera_alt, color: Colors.black, size: 36),
+                ),
+              ),
+            ),
+          ),
+
+          // **NEW**: Error message bar, only visible if _bottomErrorText is not null
+          if (_bottomErrorText != null)
+            Container(
+              width: double.infinity,
+              color: Colors.black.withOpacity(0.8),
+              padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+              child: Text(
+                _bottomErrorText!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+        ],
       ),
     );
   }

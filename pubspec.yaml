@@ -58,3 +58,6 @@ flutter:
     - assets/models/3_class_best_float16.tflite # New skin type detection model ( 3 classes)
     - assets/models/3_class_best_float32.tflite # New skin type detection model ( 3 classes)
     - assets/labels/skin_type_labels(3_classes).txt # Assuming you place labels here ( 3 classes)
+
+    #Resnet model with accurcy 86%
+    - assets/models/resnet50_best.tflite

@@ -226,18 +226,11 @@
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (routeContext) => MultiPageSkinProfileScreen( // Ensure this screen exists and is imported
-                      onProfileSaved: (profileData) {
-                        Navigator.of(routeContext).pop();
-                        if (onProfileRequested != null) {
-                          onProfileRequested!();
-                        }
-                      },
-                      onBackPressed: () {
-                        Navigator.of(routeContext).pop();
-                      }
+                builder:
+                    (context) => MultiPageSkinProfileScreen(
+                      onBackPressed: () => Navigator.of(context).pop(),
                     ),
-                  ),
+              ),
                 );
               },
               style: ElevatedButton.styleFrom(

@@ -1,13 +1,12 @@
-// screens/routine_display_screen.dart
+// lib/screens/routine_display_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:collection/collection.dart'; // For SetEquality
 import '../providers/skin_profile_provider.dart';
 import '../services/skincare_routine_service.dart';
-import '../model/routine_models.dart'; // Ensure this path is correct
+import '../model/routine_models.dart';
 import '../UserProfile/multi_screen.dart'; // For navigation
 
-// Enum to represent the selected routine time
 enum RoutineTime { morning, night }
 
 class RoutineDisplayScreen extends StatefulWidget {
@@ -23,58 +22,20 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
-  // --- To track the previous state of the provider for comparison ---
-  int? _lastSkinTypeId;
-  String? _lastSensitivity;
-  Set<int>? _lastConcernIds;
-  // --- ---
+  // State to track if the initial profile check has been performed.
+  bool _initialCheckDone = false;
 
-  // --- NEW STATE VARIABLE for AM/PM toggle ---
-  RoutineTime _selectedRoutineTime = RoutineTime.morning; // Default to morning
-
-  @override
-  void initState() {
-    super.initState();
-    // Initial fetch after the first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        // Store initial provider state before first fetch
-        final initialProfileProvider = Provider.of<SkinProfileProvider>(context, listen: false);
-        _updateLastKnownProfileState(initialProfileProvider);
-        _fetchRoutine();
-      }
-    });
-  }
-
-  // Helper to store the last known state of relevant profile data
-  void _updateLastKnownProfileState(SkinProfileProvider provider) {
-    _lastSkinTypeId = provider.userSkinTypeId;
-    _lastSensitivity = provider.userSensitivity;
-    _lastConcernIds = provider.userConcernIds.toSet(); // Store as a set for easy comparison
-  }
+  RoutineTime _selectedRoutineTime = RoutineTime.morning;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (mounted) {
-      // Listen to the provider to detect changes
-      final currentProfileProvider = Provider.of<SkinProfileProvider>(context /*, listen: true is default */);
-
-      bool profileHasChanged = false;
-      if (_lastSkinTypeId == null && currentProfileProvider.userSkinTypeId != null) {
-        // This handles the case where the profile was initially null and now has data
-        profileHasChanged = true;
-      } else if (_lastSkinTypeId != currentProfileProvider.userSkinTypeId ||
-          _lastSensitivity != currentProfileProvider.userSensitivity ||
-          !SetEquality().equals(_lastConcernIds, currentProfileProvider.userConcernIds.toSet())) {
-        profileHasChanged = true;
-      }
-
-      if (profileHasChanged) {
-        print("Profile data changed in didChangeDependencies, re-fetching routine.");
-        _updateLastKnownProfileState(currentProfileProvider); // Update our tracker
-        _fetchRoutine();
-      }
+    
+    // Use a flag to ensure the initial fetch only happens once,
+    // subsequent builds will be handled by the Consumer.
+    if (!_initialCheckDone) {
+      _fetchRoutine();
+      _initialCheckDone = true;
     }
   }
 
@@ -83,13 +44,14 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _skincareRoutine = null; // Clear previous routine on re-fetch
     });
 
-    // Get the most current provider state for fetching
     final profileProvider = Provider.of<SkinProfileProvider>(context, listen: false);
 
+    // **CRITICAL CHECK**: Profile is incomplete if type OR sensitivity is null.
     if (profileProvider.userSkinTypeId == null || profileProvider.userSensitivity == null) {
-      print("Profile not set, showing prompt.");
+      print("[RoutineScreen] Profile not fully set. Showing prompt.");
       setState(() {
         _isLoading = false;
         _errorMessage = "PROFILE_NOT_SET";
@@ -97,13 +59,14 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
       return;
     }
 
-    print("Profile is set, attempting to build routine.");
+    print("[RoutineScreen] Profile is set, attempting to build routine.");
     try {
       final routine = await _routineService.buildRoutine(
         skinTypeId: profileProvider.userSkinTypeId,
         sensitivity: profileProvider.userSensitivity,
         concernIds: profileProvider.userConcernIds.toSet(),
       );
+
       if (mounted) {
         setState(() {
           _skincareRoutine = routine;
@@ -116,25 +79,96 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
           _isLoading = false;
           _errorMessage = "Failed to build routine: ${e.toString()}";
         });
+        print("[RoutineScreen] Error fetching routine: $_errorMessage");
       }
     }
   }
 
+  // Navigate to the Profile Page for editing
   void _navigateToProfileScreen() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (routeContext) => MultiPageSkinProfileScreen(
-          onProfileSaved: (profileData) {
-            Navigator.of(routeContext).pop();
-          },
-          onBackPressed: () {
-            Navigator.of(routeContext).pop();
-          },
+        // The MultiPageSkinProfileScreen now handles its own state.
+        // The `onBackPressed` is sufficient for navigation.
+        builder: (context) => MultiPageSkinProfileScreen(
+          onBackPressed: () => Navigator.of(context).pop(),
         ),
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    // Using Consumer to react to changes in the profile provider
+    return Consumer<SkinProfileProvider>(
+      builder: (context, profileProvider, child) {
+        // This builder will re-run whenever notifyListeners() is called in the provider.
+        // We can re-evaluate the state and re-fetch if necessary.
+        // NOTE: The didChangeDependencies approach is generally more robust for this.
+        // We will keep this simple and rely on didChangeDependencies for re-fetching.
+        
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Your Skincare Routine', style: TextStyle(color: Colors.white)),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            iconTheme: const IconThemeData(color: Colors.white),
+            actions: [
+              // Add a refresh button to manually re-fetch the routine
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Refresh Routine',
+                onPressed: _isLoading ? null : _fetchRoutine,
+              )
+            ],
+          ),
+          body: _buildBody(),
+        );
+      }
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage == "PROFILE_NOT_SET") {
+      return _buildProfileSetupPrompt();
+    }
+
+    if (_errorMessage != null) {
+      return _buildErrorState(_errorMessage!);
+    }
+
+    if (_skincareRoutine == null) {
+      return _buildErrorState('Could not generate a routine at this time.');
+    }
+    
+    // Main content with the toggle and routine list
+    return Column(
+      children: [
+        _buildAmPmToggle(),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 16.0),
+            children: [
+              _buildUserProfileSummary(),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: _selectedRoutineTime == RoutineTime.morning
+                    ? _buildRoutineSection("Morning Routine", _skincareRoutine!.morningRoutine)
+                    : _buildRoutineSection("Night Routine", _skincareRoutine!.nightRoutine),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+  
+  // --- UI HELPER WIDGETS ---
 
   Widget _buildProfileSetupPrompt() {
     return Center(
@@ -175,84 +209,89 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    Provider.of<SkinProfileProvider>(context); // Establishes dependency for didChangeDependencies
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Your Skincare Routine', style: TextStyle(color: Colors.white)),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: _buildBodyWithToggle(), // Changed to use the new body builder
-    );
-  }
-
-  // --- NEW: Method to build the AM/PM toggle ---
-  Widget _buildAmPmToggle() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-      child: Center(
-        child: Container(
-          decoration: BoxDecoration(
-            // Optional: Add a background to the toggle container itself for better visual separation
-            // color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-            // borderRadius: BorderRadius.circular(12.0),
-          ),
-          child: ToggleButtons(
-            isSelected: [
-              _selectedRoutineTime == RoutineTime.morning,
-              _selectedRoutineTime == RoutineTime.night,
-            ],
-            onPressed: (int index) {
-              if (!mounted) return;
-              setState(() {
-                _selectedRoutineTime = index == 0 ? RoutineTime.morning : RoutineTime.night;
-              });
-            },
-            borderRadius: BorderRadius.circular(10.0),
-            selectedColor: Colors.white,
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.7), // Icon color when not selected
-            fillColor: Theme.of(context).colorScheme.primary, // Background of selected button
-            splashColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-            borderColor: Theme.of(context).colorScheme.outline.withOpacity(0.5),
-            selectedBorderColor: Theme.of(context).colorScheme.primary,
-            borderWidth: 1.5,
-            constraints: const BoxConstraints(minHeight: 48.0, minWidth: 100.0), // Ensure buttons have good tap area
-            children: const <Widget>[
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.wb_sunny_outlined, size: 22),
-                    SizedBox(width: 8),
-                    Text("AM", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.nights_stay_outlined, size: 22),
-                    SizedBox(width: 8),
-                    Text("PM", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-                  ],
-                ),
-              ),
-            ],
-          ),
+  Widget _buildErrorState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, color: Colors.red[400], size: 50),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.red[700], fontSize: 16)
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _fetchRoutine,
+              child: const Text('Try Again'),
+            ),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: _navigateToProfileScreen,
+              child: const Text('Edit Profile Settings'),
+            )
+          ],
         ),
       ),
     );
   }
 
+  Widget _buildAmPmToggle() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      child: ToggleButtons(
+        isSelected: [
+          _selectedRoutineTime == RoutineTime.morning,
+          _selectedRoutineTime == RoutineTime.night,
+        ],
+        onPressed: (int index) {
+          if (!mounted) return;
+          setState(() {
+            _selectedRoutineTime = index == 0 ? RoutineTime.morning : RoutineTime.night;
+          });
+        },
+        borderRadius: BorderRadius.circular(10.0),
+        selectedColor: Colors.white,
+        color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+        fillColor: Theme.of(context).colorScheme.primary,
+        splashColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+        borderColor: Theme.of(context).colorScheme.outline.withOpacity(0.5),
+        selectedBorderColor: Theme.of(context).colorScheme.primary,
+        borderWidth: 1.5,
+        constraints: const BoxConstraints(minHeight: 48.0, minWidth: 100.0),
+        children: const <Widget>[
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.wb_sunny_outlined, size: 22),
+                SizedBox(width: 8),
+                Text("AM", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.nights_stay_outlined, size: 22),
+                SizedBox(width: 8),
+                Text("PM", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-  // --- MODIFIED: _buildUserProfileSummary with icons ---
   Widget _buildUserProfileSummary() {
+    // This widget now reads directly from the provider within the build method
     final profileProvider = Provider.of<SkinProfileProvider>(context, listen: false);
 
     String skinType = profileProvider.userSkinType ?? "Not Set";
@@ -260,9 +299,6 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
     String concerns = profileProvider.userConcerns.isEmpty
         ? "None"
         : profileProvider.userConcerns.join(', ');
-
-    TextStyle valueStyle = TextStyle(color: Colors.grey[800], fontSize: 14);
-    Color iconColor = Theme.of(context).colorScheme.primary; // Use primary color for icons
 
     return Container(
       padding: const EdgeInsets.all(16.0),
@@ -282,166 +318,76 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row( // Title with an icon
+          Row(
             children: [
-              Icon(Icons.account_circle_outlined, color: iconColor, size: 26),
+              Icon(Icons.account_circle_outlined, color: Theme.of(context).colorScheme.primary, size: 26),
               const SizedBox(width: 8),
               Text(
                 "Your Current Profile",
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
               ),
+              const Spacer(),
+              // Add an edit button that navigates to the profile screen
+              IconButton(
+                icon: Icon(Icons.edit, color: Colors.grey[600]),
+                tooltip: 'Edit Profile',
+                onPressed: _navigateToProfileScreen,
+              )
             ],
           ),
           const Divider(height: 20, thickness: 1),
-          _buildProfileDetailRow(
-            icon: Icons.water_drop_outlined, // Example icon for skin type
-            iconColor: iconColor,
-            label: "Skin Type:",
-            value: skinType,
-            valueStyle: valueStyle,
-          ),
+          _buildProfileDetailRow(icon: Icons.water_drop_outlined, label: "Skin Type:", value: skinType),
           const SizedBox(height: 8),
-          _buildProfileDetailRow(
-            icon: Icons.shield_outlined, // Example icon for sensitivity
-            iconColor: iconColor,
-            label: "Sensitivity:",
-            value: sensitivity,
-            valueStyle: valueStyle,
-          ),
+          _buildProfileDetailRow(icon: Icons.shield_outlined, label: "Sensitivity:", value: sensitivity),
           const SizedBox(height: 8),
-          _buildProfileDetailRow(
-            icon: Icons.healing_outlined, // Example icon for concerns
-            iconColor: iconColor,
-            label: "Concerns:",
-            value: concerns,
-            valueStyle: valueStyle,
-            isMultiline: true, // Allow concerns to wrap if long
-          ),
+          _buildProfileDetailRow(icon: Icons.healing_outlined, label: "Concerns:", value: concerns, isMultiline: true),
         ],
       ),
     );
   }
-
-  // --- NEW HELPER for profile detail rows ---
+  
   Widget _buildProfileDetailRow({
     required IconData icon,
-    required Color iconColor,
     required String label,
     required String value,
-    required TextStyle valueStyle,
     bool isMultiline = false,
   }) {
-    return Row(
+     return Row(
       crossAxisAlignment: isMultiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
-        Icon(icon, color: iconColor, size: 20),
+        Icon(icon, color: Theme.of(context).colorScheme.primary, size: 20),
         const SizedBox(width: 10),
         Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5)),
         const SizedBox(width: 6),
         Expanded(
           child: Text(
             value,
-            style: valueStyle,
-            softWrap: true, // Ensures text wraps
+            style: TextStyle(color: Colors.grey[800], fontSize: 14),
+            softWrap: true,
           ),
         ),
       ],
     );
   }
 
-
-
-  // --- MODIFIED: Main body builder to include toggle ---
-  Widget _buildBodyWithToggle() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_errorMessage == "PROFILE_NOT_SET") {
-      return _buildProfileSetupPrompt();
-    }
-    if (_errorMessage != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, color: Colors.red[400], size: 50),
-              const SizedBox(height: 16),
-              Text(
-                _errorMessage!,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.red[700], fontSize: 16)
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _fetchRoutine,
-                child: const Text('Try Again'),
-              ),
-              const SizedBox(height: 10),
-              TextButton(
-                onPressed: _navigateToProfileScreen,
-                child: const Text('Check Profile Settings'),
-              )
-            ],
-          ),
-        ),
-      );
-    }
-    if (_skincareRoutine == null) {
-      return Center(
-          child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text('Could not generate a routine at this time.'),
-          const SizedBox(height: 10),
-          ElevatedButton(onPressed: _fetchRoutine, child: const Text("Retry"))
-        ],
-      ));
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch, // Ensure children can fill width
-      children: [
-        _buildAmPmToggle(), // This stays fixed at the top
-        Expanded( // This makes the ListView below take all remaining vertical space
-          child: ListView( // This single ListView will contain both summary and routine steps
-            padding: const EdgeInsets.only(bottom: 16.0), // Add padding to bottom of scrollable area
-            children: [
-              _buildUserProfileSummary(), // Profile summary is now a child of this ListView
-              const SizedBox(height: 16), // Space between summary and routine
-              Padding( // Add horizontal padding for the routine section
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: _selectedRoutineTime == RoutineTime.morning
-                    ? _buildRoutineSection("Morning Routine", _skincareRoutine!.morningRoutine)
-                    : _buildRoutineSection("Night Routine", _skincareRoutine!.nightRoutine),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildRoutineSection(String title, List<RoutineStep> steps) {
      return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // The title is now implicitly handled by the toggle, but you can keep it if you like
-        // Padding(
-        //   padding: const EdgeInsets.only(bottom: 8.0),
-        //   child: Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
-        // ),
-        if (steps.isEmpty && (_skincareRoutine?.morningRoutine.every((s) => s.recommendedProducts.isEmpty) ?? true) && (_skincareRoutine?.nightRoutine.every((s) => s.recommendedProducts.isEmpty) ?? true) )
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16.0),
-            child: Center(child: Text("No products could be recommended for your current profile. Please ensure your profile is complete or try adjusting your concerns.", style: TextStyle(fontStyle: FontStyle.italic, color: Colors.orangeAccent), textAlign: TextAlign.center,)),
+        if (steps.isEmpty)
+           Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24.0),
+            child: Center(
+              child: Text(
+                "No products could be recommended for this routine based on your profile.",
+                style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+            ),
           )
-        else if (steps.isEmpty) const Padding(
-          padding: EdgeInsets.symmetric(vertical: 16.0),
-          child: Center(child: Text("No steps defined for this routine.", style: TextStyle(fontStyle: FontStyle.italic), textAlign: TextAlign.center,)),
-        ),
-        ListView.builder(
+        else
+          ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: steps.length,
@@ -463,7 +409,7 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
                       const SizedBox(height: 6),
                       Text(
                         step.recommendedProducts.isEmpty
-                            ? "No suitable products found for your profile."
+                            ? "No suitable products found for this step."
                             : "${step.recommendedProducts.length} product(s) recommended:",
                         style: TextStyle(
                           fontSize: 14,
@@ -476,7 +422,7 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8.0),
                           child: Text(
-                            "Try adjusting your skin concerns or check back later!",
+                            "Try adjusting your skin concerns to see recommendations.",
                             style: TextStyle(color: Colors.grey[700]),
                           ),
                         )
@@ -511,9 +457,7 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: () {
-            _showProductDetailsModal(context, product);
-          },
+          onTap: () => _showProductDetailsModal(context, product),
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(10.0),
@@ -579,28 +523,25 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
     );
   }
 
-
-  // --- NEW: Method to show product details in a modal bottom sheet ---
   void _showProductDetailsModal(BuildContext context, RecommendedProduct product) {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Allows the sheet to take up more height
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
       ),
       builder: (BuildContext bmsContext) {
-        return DraggableScrollableSheet( // Makes content scrollable within the sheet
-          initialChildSize: 0.6, // Start at 60% of screen height
-          minChildSize: 0.4,   // Min at 40%
-          maxChildSize: 0.9,   // Max at 90%
-          expand: false, // Important: set to false
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.4,
+          maxChildSize: 0.9,
+          expand: false,
           builder: (BuildContext _, ScrollController scrollController) {
             return Container(
               padding: const EdgeInsets.all(20.0),
-              child: ListView( // Use ListView for scrollable content
+              child: ListView(
                 controller: scrollController,
                 children: <Widget>[
-                  // Drag Handle (Optional but good UX)
                   Center(
                     child: Container(
                       width: 40,
@@ -612,30 +553,27 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
                       ),
                     ),
                   ),
-                  // Product Image (Larger)
                   if (product.imageUrl != null && product.imageUrl!.isNotEmpty)
                     Center(
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12.0),
                         child: Image.network(
                           product.imageUrl!,
-                          height: 180, // Larger image in modal
+                          height: 180,
                           width: 180,
-                          fit: BoxFit.contain, // Use contain to see full image
+                          fit: BoxFit.contain,
                            errorBuilder: (context, error, stackTrace) =>
                                 const Icon(Icons.broken_image, size: 100, color: Colors.grey),
                         ),
                       ),
                     ),
                   const SizedBox(height: 16),
-                  // Product Name
                   Text(
                     product.name,
                     style: Theme.of(bmsContext).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
-                  // Brand
                   if (product.brand != null)
                     Center(
                       child: Text(
@@ -644,7 +582,6 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
                       ),
                     ),
                   const SizedBox(height: 8),
-                  // Price
                   if (product.price != null)
                     Center(
                       child: Text(
@@ -655,18 +592,7 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
                             ),
                       ),
                     ),
-                  const SizedBox(height: 4),
-                  // Similarity Score (Optional)
-                  // if (product.similarityScore != null)
-                  //    Center(
-                  //      child: Text(
-                  //        "Relevance: ${(product.similarityScore! * 100).toStringAsFixed(0)}%",
-                  //        style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
-                  //      ),
-                  //    ),
-
                   const Divider(height: 32, thickness: 1),
-                  // Product Description
                   Text(
                     "Description:",
                     style: Theme.of(bmsContext).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
@@ -678,7 +604,7 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
                         : "No description available for this product.",
                     style: Theme.of(bmsContext).textTheme.bodyMedium?.copyWith(height: 1.5),
                   ),
-                  const SizedBox(height: 20), // Space at the bottom
+                  const SizedBox(height: 20),
                 ],
               ),
             );
@@ -687,5 +613,4 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
       },
     );
   }
-
 }

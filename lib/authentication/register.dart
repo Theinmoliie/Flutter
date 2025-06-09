@@ -1,20 +1,26 @@
+// register.dart
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'login.dart'; // Make sure this is the correct import for your login screen
-// import 'home.dart'; // Import your actual home screen if needed for navigation check
+import 'login.dart';
 
 class RegisterScreen extends StatefulWidget {
+  // 1. ADD THIS
+  final VoidCallback onGoogleSignUp;
+
+  // 2. UPDATE THE CONSTRUCTOR
+  const RegisterScreen({Key? key, required this.onGoogleSignUp})
+    : super(key: key);
+
   @override
   _RegisterScreenState createState() => _RegisterScreenState();
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  // ... (Your existing properties are fine)
   final _supabase = Supabase.instance.client;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
-  // Optional: Add a form key for validation later if needed
-  // final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
@@ -24,11 +30,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleSignUp() async {
-    // Optional: Add form validation
-    // if (!_formKey.currentState!.validate()) {
-    //   return;
-    // }
-
+    // ... (Your existing _handleSignUp code is fine)
     setState(() => _isLoading = true);
 
     try {
@@ -37,27 +39,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _passwordController.text.trim(),
       );
 
-      if (mounted) { // Check if the widget is still in the tree
+      // register.dart -> _handleSignUp() -> THE FIX
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Account created! Please log in to continue.")),
+          const SnackBar(
+            content: Text("Account created! Please log in to continue."),
+          ),
         );
-        // Navigate to a screen telling the user to check their email,
-        // or potentially the login screen. Avoid navigating directly to home
-        // before email verification is confirmed by Supabase session change.
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => LoginScreen()),
-        );
+        // Use the named route to ensure the correct LoginScreen is built
+        Navigator.pushReplacementNamed(context, '/login');
       }
-
     } on AuthException catch (e) {
-       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Sign Up Failed: ${e.message}")),
-        );
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Sign Up Failed: ${e.message}")));
       }
     } catch (e) {
-       if (mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("An unexpected error occurred: $e")),
         );
@@ -69,30 +68,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-    // register.dart -> _RegisterScreenState class
   Future<void> _handleGoogleSignUp() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
+
+    // 3. CALL THE CALLBACK
+    widget.onGoogleSignUp();
+
     try {
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        // Make sure this matches the one checked in _handleDeepLink
         redirectTo: 'io.supabase.flutter://signup-callback',
       );
     } on AuthException catch (e) {
-      // ... error handling ...
-       if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(content: Text("Google Sign Up Failed: ${e.message}")),
-         );
-       }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Google Sign Up Failed: ${e.message}")),
+        );
+      }
     } catch (e) {
-      // ... error handling ...
-        if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(content: Text("An unexpected error occurred: $e")),
-         );
-       }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("An unexpected error occurred: $e")),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -102,28 +101,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Use theme colors
+    // ... (Your existing build method is fine)
+    // The onPressed for the Google button already calls _handleGoogleSignUp
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.background, // Use theme background
-      body: SafeArea( // Ensure content is not under status bars/notches
-        child: SingleChildScrollView( // Prevent overflow on smaller screens
+      backgroundColor: colorScheme.background,
+      body: SafeArea(
+        child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 40.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 30.0,
+              vertical: 40.0,
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.stretch, // Make buttons stretch
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                 const SizedBox(height: 50.0), 
-                // Logo - Consider adjusting size/padding based on your logo
-                Image.asset('assets/skinsafeLogo.png', height: 80), // Adjusted height
+                const SizedBox(height: 50.0),
+                Image.asset('assets/skinsafeLogo.png', height: 80),
                 const SizedBox(height: 30),
 
-                // Title
                 Text(
-                  "Sign Up", // Title
+                  "Sign Up",
                   textAlign: TextAlign.center,
                   style: textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
@@ -132,59 +133,70 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 30),
 
-                // Email Field
                 TextFormField(
                   controller: _emailController,
                   decoration: InputDecoration(
                     labelText: "Email",
-                    prefixIcon: Icon(Icons.email_outlined, color: colorScheme.primary),
+                    prefixIcon: Icon(
+                      Icons.email_outlined,
+                      color: colorScheme.primary,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12.0),
                     ),
                     filled: true,
-                    fillColor: colorScheme.surfaceVariant.withOpacity(0.3), // Subtle fill
+                    fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
                     enabledBorder: OutlineInputBorder(
-                       borderRadius: BorderRadius.circular(12.0),
-                       borderSide: BorderSide(color: Colors.grey.shade400, width: 1.0),
+                      borderRadius: BorderRadius.circular(12.0),
+                      borderSide: BorderSide(
+                        color: Colors.grey.shade400,
+                        width: 1.0,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
-                       borderRadius: BorderRadius.circular(12.0),
-                       borderSide: BorderSide(color: colorScheme.primary, width: 1.5),
+                      borderRadius: BorderRadius.circular(12.0),
+                      borderSide: BorderSide(
+                        color: colorScheme.primary,
+                        width: 1.5,
+                      ),
                     ),
                   ),
                   keyboardType: TextInputType.emailAddress,
-                  // Optional: Add validator
-                  // validator: (value) { ... }
                 ),
                 const SizedBox(height: 15),
 
-                // Password Field
                 TextFormField(
                   controller: _passwordController,
                   decoration: InputDecoration(
                     labelText: "Password",
-                    prefixIcon: Icon(Icons.lock_outline, color: colorScheme.primary),
-                     border: OutlineInputBorder(
+                    prefixIcon: Icon(
+                      Icons.lock_outline,
+                      color: colorScheme.primary,
+                    ),
+                    border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12.0),
                     ),
                     filled: true,
                     fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
-                     enabledBorder: OutlineInputBorder(
-                       borderRadius: BorderRadius.circular(12.0),
-                       borderSide: BorderSide(color: Colors.grey.shade400, width: 1.0),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.0),
+                      borderSide: BorderSide(
+                        color: Colors.grey.shade400,
+                        width: 1.0,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
-                       borderRadius: BorderRadius.circular(12.0),
-                       borderSide: BorderSide(color: colorScheme.primary, width: 1.5),
+                      borderRadius: BorderRadius.circular(12.0),
+                      borderSide: BorderSide(
+                        color: colorScheme.primary,
+                        width: 1.5,
+                      ),
                     ),
                   ),
                   obscureText: true,
-                   // Optional: Add validator
-                  // validator: (value) { ... }
                 ),
                 const SizedBox(height: 30),
 
-                // Sign Up Button
                 ElevatedButton(
                   onPressed: _isLoading ? null : _handleSignUp,
                   style: ElevatedButton.styleFrom(
@@ -194,40 +206,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12.0),
                     ),
-                    elevation: 2, // Subtle shadow
+                    elevation: 2,
                   ),
                   child: Text(_isLoading ? "Creating Account..." : "Sign Up"),
                 ),
                 const SizedBox(height: 25),
 
-                // Divider "Or sign up with"
                 Row(
                   children: [
-                    Expanded(child: Divider(thickness: 1, color: Colors.grey.shade300)),
+                    Expanded(
+                      child: Divider(thickness: 1, color: Colors.grey.shade300),
+                    ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12.0),
                       child: Text(
                         'Or sign up with',
-                        style: textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                        style: textTheme.bodySmall?.copyWith(
+                          color: Colors.grey.shade600,
+                        ),
                       ),
                     ),
-                    Expanded(child: Divider(thickness: 1, color: Colors.grey.shade300)),
+                    Expanded(
+                      child: Divider(thickness: 1, color: Colors.grey.shade300),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 25),
 
-                // Google Sign Up Button (Outlined style)
                 OutlinedButton.icon(
-                  icon: Image.asset( // Use Image.asset for the Google logo
-                      'assets/google_logo.png', // Replace with your actual Google logo asset path
-                      height: 20.0, // Adjust size as needed
-                  ),
+                  icon: Image.asset('assets/google_logo.png', height: 20.0),
                   label: const Text("Sign Up with Google"),
-                  onPressed: _isLoading ? null : _handleGoogleSignUp,
+                  onPressed:
+                      _isLoading
+                          ? null
+                          : _handleGoogleSignUp, // THIS CALLS THE CORRECT METHOD
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: colorScheme.onBackground, // Text color
-                    padding: const EdgeInsets.symmetric(vertical: 14), // Slightly less padding than main button
-                    side: BorderSide(color: Colors.grey.shade400), // Border color
+                    foregroundColor: colorScheme.onBackground,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(color: Colors.grey.shade400),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12.0),
                     ),
@@ -235,22 +251,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 30),
 
-                // Login Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text("Already have an account?", style: textTheme.bodyMedium),
+                    Text(
+                      "Already have an account?",
+                      style: textTheme.bodyMedium,
+                    ),
                     TextButton(
                       onPressed: () {
-                        // Use pushReplacement to avoid stacking registration screens
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (context) => LoginScreen()),
-                        );
+                        // CORRECT WAY: Use the named route defined in main.dart
+                        Navigator.pushReplacementNamed(context, '/login');
                       },
                       style: TextButton.styleFrom(
-                        foregroundColor: colorScheme.primary, // Use theme color
-                        padding: const EdgeInsets.symmetric(horizontal: 4.0), // Minimal padding
+                        foregroundColor: colorScheme.primary,
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
                       ),
                       child: const Text("Log In"),
                     ),

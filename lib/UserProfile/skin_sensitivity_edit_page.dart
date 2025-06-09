@@ -26,7 +26,7 @@ class _SkinSensitivityEditPageState extends State<SkinSensitivityEditPage> {
       return;
     }
     // Update the provider with the new value
-    Provider.of<SkinProfileProvider>(context, listen: false).updateSkinProfile(sensitivity: _selectedSensitivity);
+    Provider.of<SkinProfileProvider>(context, listen: false).updateUserProfile(sensitivity: _selectedSensitivity);
     // Go back to the profile page
     Navigator.of(context).pop();
   }

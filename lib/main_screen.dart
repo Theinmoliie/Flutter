@@ -83,7 +83,7 @@ class MainScreenState extends State<MainScreen> {
             final skinTypeData = profileProvider.getSkinTypeByName(skinTypeResult);
             
             if (skinTypeData != null) {
-              profileProvider.updateSkinProfile(
+              profileProvider.updateUserProfile(
                 skinTypeId: skinTypeData['skin_type_id'],
                 skinType: skinTypeData['skin_type'],
               );

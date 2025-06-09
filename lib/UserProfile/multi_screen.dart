@@ -1,19 +1,28 @@
 // lib/UserProfile/multi_screen.dart
-
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:skinsafe/providers/skin_profile_provider.dart';
 import 'package:skinsafe/AiSkinAnalysis/analysis_camera_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../UserProfile/skin_sensitivity_edit_page.dart';
 import '../UserProfile/skin_concerns_edit_page.dart';
+// Import the new generic edit page with its new name and path
+import 'generic_profile_field_edit_page.dart';
 
-// A simple model for the profile items to make the list cleaner
+// ProfileItem class remains the same...
 class ProfileItem {
   final String title;
   final String? value;
   final VoidCallback onEdit;
+  final bool isEditable;
 
-  ProfileItem({required this.title, this.value, required this.onEdit});
+  ProfileItem({
+    required this.title,
+    this.value,
+    required this.onEdit,
+    this.isEditable = true,
+  });
 }
 
 class MultiPageSkinProfileScreen extends StatefulWidget {
@@ -31,31 +40,38 @@ class MultiPageSkinProfileScreen extends StatefulWidget {
 
 class _MultiPageSkinProfileScreenState
     extends State<MultiPageSkinProfileScreen> {
-  // --- Navigation Methods for Editing Sections ---
+  
+  // --- NEW: A single navigation method for generic fields ---
+  void _editGenericField(EditableProfileField field) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GenericProfileFieldEditPage(fieldToEdit: field),
+      ),
+    );
+  }
 
+  // --- The other edit methods remain the same ---
   void _editSkinType() {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => AnalysisCameraPage(
           onAnalysisComplete: (String skinTypeName) {
-            // This callback is triggered from AnalysisCameraPage after a successful analysis.
-            // We find the ID and update the provider.
+            // ... (rest of this method is unchanged)
             final profileProvider = Provider.of<SkinProfileProvider>(context, listen: false);
             final skinTypeData = profileProvider.getSkinTypeByName(skinTypeName);
-            
             if (skinTypeData != null) {
-              profileProvider.updateSkinProfile(
+              profileProvider.updateUserProfile(
                 skinTypeId: skinTypeData['skin_type_id'],
                 skinType: skinTypeData['skin_type'],
               );
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("Error: Could not match '$skinTypeName' to a known skin type."))
+                const SnackBar(content: Text("Error: Could not match skin type."))
               );
             }
-            // Pop the camera page to return to the profile screen.
-            Navigator.of(context).pop(); 
+            Navigator.of(context).pop();
           },
         ),
       ),
@@ -65,18 +81,14 @@ class _MultiPageSkinProfileScreenState
   void _editSensitivity() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const SkinSensitivityEditPage(), // A new, dedicated page
-      ),
+      MaterialPageRoute(builder: (context) => const SkinSensitivityEditPage()),
     );
   }
 
   void _editConcerns() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const SkinConcernsEditPage(), // A new, dedicated page
-      ),
+      MaterialPageRoute(builder: (context) => const SkinConcernsEditPage()),
     );
   }
 
@@ -84,41 +96,39 @@ class _MultiPageSkinProfileScreenState
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     
-    // Use a Consumer to listen for changes in the SkinProfileProvider
     return Consumer<SkinProfileProvider>(
       builder: (context, profileProvider, child) {
+        if (profileProvider.isLoading) {
+          // ... (loading state is unchanged)
+          return Scaffold(
+            appBar: AppBar(title: const Text('Profile'), backgroundColor: colorScheme.primary, foregroundColor: Colors.white),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
 
-        // Build the list of items to display on the profile page
+        // --- THE FIX IS HERE: Update the onEdit callbacks ---
         final List<ProfileItem> profileItems = [
           ProfileItem(
             title: "Username",
-            value: "ChilliCrab", // Replace with actual user data if available
-            onEdit: () { /* TODO: Implement username edit logic */ 
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Edit username coming soon!")));
-            },
-          ),
-          ProfileItem(
-            title: "Email",
-            value: "ChilliCrab@gmail.com", // Replace with actual user data
-            onEdit: () { /* TODO: Implement email edit logic */
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Edit email coming soon!")));
-            },
+            value: profileProvider.username,
+            onEdit: () => _editGenericField(EditableProfileField.username),
           ),
           ProfileItem(
             title: "Date Of Birth",
-            value: "4/1/2009", // Replace with actual user data
-            onEdit: () { /* TODO: Implement DOB edit logic */ 
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Edit date of birth coming soon!")));
-            },
+            value: profileProvider.dateOfBirth == null 
+                   ? "Not Set" 
+                   : DateFormat.yMMMMd().format(profileProvider.dateOfBirth!),
+            onEdit: () => _editGenericField(EditableProfileField.dateOfBirth),
           ),
+          // --- The rest of the items are unchanged ---
           ProfileItem(
             title: "Skin Type",
-            value: profileProvider.userSkinType ?? "Not Set",
+            value: profileProvider.userSkinType,
             onEdit: _editSkinType,
           ),
           ProfileItem(
             title: "Skin Sensitivity",
-            value: profileProvider.userSensitivity ?? "Not Set",
+            value: profileProvider.userSensitivity,
             onEdit: _editSensitivity,
           ),
           ProfileItem(
@@ -131,7 +141,8 @@ class _MultiPageSkinProfileScreenState
         ];
 
         return Scaffold(
-          backgroundColor: const Color(0xFFFAF6FF), // Light lavender background
+          // ... (the rest of the build method, including the ListView and Card builder, is unchanged)
+          backgroundColor: const Color(0xFFFAF6FF),
           appBar: AppBar(
             title: const Text('Profile', style: TextStyle(fontWeight: FontWeight.bold)),
             leading: widget.onBackPressed != null
@@ -144,14 +155,15 @@ class _MultiPageSkinProfileScreenState
           body: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
             children: [
-              const Center(
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundImage: AssetImage('assets/avatar.png'),
-                  backgroundColor: Colors.white70,
+              const Center(child: CircleAvatar(radius: 50, backgroundImage: AssetImage('assets/avatar.png'))),
+              const SizedBox(height: 12),
+              Center(
+                child: Text(
+                  Supabase.instance.client.auth.currentUser?.email ?? 'No Email Found',
+                  style: TextStyle(fontSize: 16, color: Colors.grey[600], fontWeight: FontWeight.w500),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               ...profileItems.map((item) => _buildProfileItemCard(context, item)).toList(),
             ],
           ),
@@ -160,31 +172,20 @@ class _MultiPageSkinProfileScreenState
     );
   }
 
-  // Helper widget to build each item card
   Widget _buildProfileItemCard(BuildContext context, ProfileItem item) {
+    // ... (this widget is unchanged)
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
       shadowColor: Colors.black.withOpacity(0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        title: Text(
-          item.title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        subtitle: Text(
-          item.value ?? 'Not Set',
-          style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: IconButton(
-          icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
-          onPressed: item.onEdit,
-        ),
+        title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        subtitle: Text(item.value ?? 'Not Set', style: TextStyle(fontSize: 16, color: Colors.grey[700]), maxLines: 2, overflow: TextOverflow.ellipsis),
+        trailing: item.isEditable 
+          ? IconButton(icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary), onPressed: item.onEdit)
+          : null,
       ),
     );
   }

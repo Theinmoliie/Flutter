@@ -35,7 +35,7 @@ class _SkinConcernsEditPageState extends State<SkinConcernsEditPage> {
             .map((c) => c['concern'] as String).toList();
             
     // Update the provider
-    profileProvider.updateSkinProfile(concerns: concernsToSave, concernIds: concernIdsToSave);
+    profileProvider.updateUserProfile(concerns: concernsToSave, concernIds: concernIdsToSave);
     // Go back to the profile page
     Navigator.of(context).pop();
   }

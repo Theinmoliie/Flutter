@@ -1,4 +1,4 @@
-// main.dart -> FINAL CORRECTED VERSION
+// lib/main.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -7,9 +7,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'Supabase/supabase_config.dart';
 import 'authentication/register.dart';
 import 'authentication/login.dart';
-import 'main_screen.dart'; // Make sure this imports the screen with NewHomeScreen
+import 'main_screen.dart';
 import 'providers/skin_profile_provider.dart';
 
+// Use a global key for navigation without a build context.
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
@@ -37,7 +38,30 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _initializeAuthListener();
+    // This listener now coordinates everything.
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final event = data.event;
+      final session = data.session;
+      final user = session?.user;
+
+      if (event == AuthChangeEvent.signedIn && user != null) {
+        // A sign-in event occurred. Now we check the flags.
+        if (_isProcessingGoogleSignUp) {
+          _handleGoogleSignUpEvent(user);
+        } else if (_isProcessingGoogleSignIn) {
+          _handleGoogleSignInEvent(user);
+        } else {
+          // This is a native email/password login.
+          _navigateToProfileLoading();
+        }
+      } else if (event == AuthChangeEvent.signedOut) {
+        // Any sign out sends the user to the login screen.
+        navigatorKey.currentState?.pushNamedAndRemoveUntil('/login', (route) => false);
+      }
+    });
+
+    // Handle the initial state when the app first loads.
+    _handleInitialState();
   }
 
   @override
@@ -45,94 +69,74 @@ class _MyAppState extends State<MyApp> {
     _authSubscription?.cancel();
     super.dispose();
   }
-
-  void _initializeAuthListener() {
-    _authSubscription =
-        Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-      if (!mounted) return;
-      final event = data.event;
-      final session = data.session;
-      final user = session?.user;
-
-      if (event == AuthChangeEvent.signedIn && user != null) {
-        if (_isProcessingGoogleSignUp) {
-          _handleGoogleSignUpEvent(user);
-          _isProcessingGoogleSignUp = false;
-        } else if (_isProcessingGoogleSignIn) {
-          _handleGoogleSignInEvent(user);
-          _isProcessingGoogleSignIn = false;
-        }
-        // This else handles the native email/password login success
-        else {
-          navigatorKey.currentState
-              ?.pushNamedAndRemoveUntil('/main', (route) => false);
-        }
-      } else if (event == AuthChangeEvent.signedOut) {
-        // This handles any sign-out event, ensuring the user is returned to the login screen.
-        navigatorKey.currentState
-            ?.pushNamedAndRemoveUntil('/login', (route) => false);
-      }
-    });
+  
+  // This function is called ONLY when the app starts.
+  Future<void> _handleInitialState() async {
+    // A short delay to allow the navigator to be ready.
+    await Future.delayed(const Duration(milliseconds: 10));
+    if (Supabase.instance.client.auth.currentSession != null) {
+      _navigateToProfileLoading();
+    } else {
+      navigatorKey.currentState?.pushNamedAndRemoveUntil('/login', (route) => false);
+    }
   }
 
-  void _handleGoogleSignUpEvent(User user) {
-    final isNewUser = user.lastSignInAt == null ||
-        DateTime.parse(user.lastSignInAt!)
-                .difference(DateTime.parse(user.createdAt!))
-                .inSeconds <
-            15;
+  // This is the new "Splash Screen" navigation function.
+  Future<void> _navigateToProfileLoading() async {
+    // Show the splash screen while we fetch the profile.
+    navigatorKey.currentState?.pushNamedAndRemoveUntil('/loading', (route) => false);
 
-    // We always sign out after a Google Sign Up attempt to enforce the clean login flow
+    final profileProvider = navigatorKey.currentContext!.read<SkinProfileProvider>();
+    final success = await profileProvider.fetchAndSetUserProfile();
+
+    if (success) {
+      navigatorKey.currentState?.pushNamedAndRemoveUntil('/main', (route) => false);
+    } else {
+      // If fetching fails, sign out and show an error.
+      await Supabase.instance.client.auth.signOut();
+      final context = navigatorKey.currentContext;
+      if (context != null && context.mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: Colors.red,
+          content: Text('Could not load profile. Please log in again.'),
+        ));
+      }
+    }
+  }
+  
+  // Your Google event handlers remain to manage the specific UX flows.
+  void _handleGoogleSignUpEvent(User user) {
     Supabase.instance.client.auth.signOut();
     final context = navigatorKey.currentContext;
     if (context == null) return;
+    
+    final isNewUser = user.lastSignInAt == null ||
+        DateTime.parse(user.lastSignInAt!).difference(DateTime.parse(user.createdAt!)).inSeconds < 3;
+        
+    if (isNewUser) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Account created! Please log in.")));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(backgroundColor: Colors.red, content: Text("This Google account is already registered.")));
+    }
+    // The signOut() triggers the listener, which navigates to /login.
+    _isProcessingGoogleSignUp = false; // Reset flag
+  }
+  
+  void _handleGoogleSignInEvent(User user) {
+     final isNewUser = user.lastSignInAt == null ||
+        DateTime.parse(user.lastSignInAt!).difference(DateTime.parse(user.createdAt!)).inSeconds < 3;
 
     if (isNewUser) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Account created successfully! Please log in."),
-        ),
-      );
+      Supabase.instance.client.auth.signOut();
+      final context = navigatorKey.currentContext;
+      if (context == null) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(backgroundColor: Colors.red, content: Text("Account not found. Please sign up first.")));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Colors.red,
-          content: Text(
-            "This Google account is already registered. Please log in.",
-          ),
-        ),
-      );
+      // On success, navigate to the loading screen to fetch the profile.
+      _navigateToProfileLoading();
     }
-    // No navigation is needed here because the signOut() call will trigger
-    // the AuthStateChange listener, which will handle navigation to /login.
+    _isProcessingGoogleSignIn = false; // Reset flag
   }
-
-  void _handleGoogleSignInEvent(User user) {
-  final isNewUser = user.lastSignInAt == null ||
-      DateTime.parse(user.lastSignInAt!)
-              .difference(DateTime.parse(user.createdAt!))
-              .inSeconds <
-          15;
-  if (isNewUser) {
-    // ... (failure path is fine)
-    Supabase.instance.client.auth.signOut();
-    final context = navigatorKey.currentContext;
-    if (context == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        backgroundColor: Colors.red,
-        content: Text("Account not found. Please sign up first."),
-      ),
-    );
-    // Stay on login page
-    navigatorKey.currentState
-        ?.pushNamedAndRemoveUntil('/login', (route) => false);
-  } else {
-    // *** THIS IS THE FIX: EXPLICITLY NAVIGATE ON SUCCESS ***
-    navigatorKey.currentState
-        ?.pushNamedAndRemoveUntil('/main', (route) => false);
-  }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -144,8 +148,10 @@ class _MyAppState extends State<MyApp> {
         useMaterial3: true,
       ),
       debugShowCheckedModeBanner: false,
-      home: const AuthGate(),
+      // The initial screen is just a loading spinner. The logic in initState will navigate away.
+      home: const SplashScreen(),
       routes: {
+        '/loading': (context) => const SplashScreen(), // The new loading route
         '/login': (context) => LoginScreen(
               onGoogleSignIn: () => setState(() {
                 _isProcessingGoogleSignIn = true;
@@ -164,36 +170,9 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-// The AuthGate simply shows a loading screen initially and lets the listener handle navigation.
-// This prevents build-time navigation errors.
-class AuthGate extends StatefulWidget {
-  const AuthGate({Key? key}) : super(key: key);
-
-  @override
-  State<AuthGate> createState() => _AuthGateState();
-}
-
-class _AuthGateState extends State<AuthGate> {
-  @override
-  void initState() {
-    super.initState();
-    _redirect();
-  }
-
-  Future<void> _redirect() async {
-    // await a short delay to allow the widget to build
-    await Future.delayed(Duration.zero);
-    if (!mounted) {
-      return;
-    }
-
-    final session = Supabase.instance.client.auth.currentSession;
-    if (session != null) {
-      Navigator.of(context).pushNamedAndRemoveUntil('/main', (route) => false);
-    } else {
-      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
-    }
-  }
+// A simple, reusable splash screen widget.
+class SplashScreen extends StatelessWidget {
+  const SplashScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

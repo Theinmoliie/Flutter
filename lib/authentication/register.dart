@@ -29,44 +29,52 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  Future<void> _handleSignUp() async {
-    // ... (Your existing _handleSignUp code is fine)
-    setState(() => _isLoading = true);
+  // lib/authentication/register.dart -> _handleSignUp()
 
-    try {
-      await _supabase.auth.signUp(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+Future<void> _handleSignUp() async {
+  setState(() => _isLoading = true);
+
+  // Use a final variable for the context to use it safely in async gaps.
+  final currentContext = context;
+
+  try {
+    await _supabase.auth.signUp(
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+    );
+
+    // --- THIS IS THE FIX ---
+    // Manually sign out the user to destroy the session created by signUp.
+    // This forces them to log in, which is the desired flow.
+    await _supabase.auth.signOut();
+
+    if (mounted) {
+      ScaffoldMessenger.of(currentContext).showSnackBar(
+        const SnackBar(
+          content: Text("Account created! Please verify your email and log in."),
+        ),
       );
-
-      // register.dart -> _handleSignUp() -> THE FIX
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Account created! Please log in to continue."),
-          ),
-        );
-        // Use the named route to ensure the correct LoginScreen is built
-        Navigator.pushReplacementNamed(context, '/login');
-      }
-    } on AuthException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Sign Up Failed: ${e.message}")));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("An unexpected error occurred: $e")),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      // Now, navigating to the login page will work as expected.
+      Navigator.pushReplacementNamed(currentContext, '/login');
+    }
+  } on AuthException catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(currentContext).showSnackBar(
+        SnackBar(content: Text("Sign Up Failed: ${e.message}")),
+      );
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(currentContext).showSnackBar(
+        SnackBar(content: Text("An unexpected error occurred: $e")),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
 
   Future<void> _handleGoogleSignUp() async {
     if (!mounted) return;

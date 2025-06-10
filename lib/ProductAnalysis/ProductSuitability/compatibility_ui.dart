@@ -6,7 +6,7 @@
     import 'package:provider/provider.dart';
     import '../../util/compatibilityscore_util.dart'; // Adjust import path
     import '../../providers/skin_profile_provider.dart'; // Adjust import path
-    import '../../UserProfile/multi_screen.dart';     // Adjust import path
+    import '../../UserProfile/profile_dashboard.dart';     // Adjust import path
     import '../product_header_widget.dart';           // Adjust import path
 
 
@@ -227,7 +227,7 @@
                   context,
                   MaterialPageRoute(
                 builder:
-                    (context) => MultiPageSkinProfileScreen(
+                    (context) => ProfileDashboard(
                       onBackPressed: () => Navigator.of(context).pop(),
                     ),
               ),

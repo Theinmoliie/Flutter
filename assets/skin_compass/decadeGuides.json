@@ -1,0 +1,102 @@
+{
+  "teens": {
+    "age_range": [13, 19],
+    "title": "Your Teen Skin Guide: The Age of Change",
+    "summary": "Welcome to a time of major change! Hormonal fluctuations can ramp up oil production, leading to clogged pores and breakouts. The goal right now isn't a complex, 10-step routine. It's about building simple, consistent habits—like cleansing properly and protecting your skin from the sun—that will set you up for a lifetime of healthy skin.",
+    "common_concerns": ["Acne & Breakouts", "Oily Skin", "Blackheads", "Redness"],
+    "focus_on": ["Cleansing", "Balancing", "Protection (SPF!)"],
+    "spotlight_ingredients": [
+      {
+        "name": "Salicylic Acid (BHA)",
+        "tagline": "The Pore Purifier",
+        "description": "An exfoliant that gets deep into pores to clear out oil and dead skin. It's your best friend for fighting acne and blackheads."
+      },
+      {
+        "name": "Niacinamide",
+        "tagline": "The Universal Balancer",
+        "description": "A versatile vitamin that helps control oil, calm redness, and strengthen your skin's protective barrier without being harsh."
+      }
+    ]
+  },
+  "twenties": {
+    "age_range": [20, 29],
+    "title": "Your 20s: The Prevention Decade",
+    "summary": "Your skin is at its peak, but this is when the first signs of 'life'—late nights, stress, and sun exposure—can start to show. Collagen production begins its slow decline. The focus now is on prevention and establishing a solid routine to protect your skin from future damage. Think of it as investing in your future face!",
+    "common_concerns": ["Dullness", "Dehydration", "Uneven Tone", "First Fine Lines"],
+    "focus_on": ["Prevention", "Hydration", "Consistency"],
+    "spotlight_ingredients": [
+      {
+        "name": "Vitamin C",
+        "tagline": "The Daily Defender",
+        "description": "A powerful antioxidant that protects skin from environmental damage, brightens your complexion, and gives you a healthy glow."
+      },
+      {
+        "name": "Hyaluronic Acid",
+        "tagline": "The Hydration Hero",
+        "description": "This molecule draws moisture into the skin, keeping it plump, hydrated, and happy. It helps soften the look of fine lines caused by dryness."
+      },
+      {
+        "name": "AHAs (Glycolic/Lactic Acid)",
+        "tagline": "The Surface Smoothers",
+        "description": "These exfoliants work on the skin's surface to get rid of dead cells, tackling dullness and uneven texture for a brighter look."
+      }
+    ]
+  },
+  "thirties": {
+    "age_range": [30, 39],
+    "title": "Your 30s: The Correction & Boosting Decade",
+    "summary": "Cell turnover starts to slow down more noticeably, and fine lines may become more established. This is the decade to introduce more powerful, targeted ingredients to boost collagen production and accelerate cell renewal. Your routine might become a bit more sophisticated, but the results are worth it.",
+    "common_concerns": ["Fine Lines & Wrinkles", "Dullness", "Uneven Skin Tone", "Loss of Firmness"],
+    "focus_on": ["Cell Turnover", "Collagen Boosting", "Targeted Treatments"],
+    "spotlight_ingredients": [
+      {
+        "name": "Retinoids (Retinol)",
+        "tagline": "The Gold Standard",
+        "description": "The most-proven anti-aging ingredient family. Retinoids speed up cell turnover to visibly improve fine lines, wrinkles, and skin tone."
+      },
+      {
+        "name": "Peptides",
+        "tagline": "The Building Blocks",
+        "description": "These are messengers that signal your skin to produce more collagen, helping to improve skin's firmness and smooth the look of wrinkles."
+      }
+    ]
+  },
+  "forties": {
+    "age_range": [40, 49],
+    "title": "Your 40s: The Nurture & Support Decade",
+    "summary": "Skin often becomes drier and less firm due to hormonal shifts and a further decline in collagen and elastin. The focus shifts towards deeply nurturing the skin and supporting its protective barrier. It's all about hydration, nourishment, and strengthening your skin's foundation.",
+    "common_concerns": ["Deeper Wrinkles", "Loss of Firmness", "Dryness", "Hyperpigmentation"],
+    "focus_on": ["Barrier Support", "Deep Hydration", "Firming"],
+    "spotlight_ingredients": [
+      {
+        "name": "Ceramides",
+        "tagline": "The Barrier Guardians",
+        "description": "These essential lipids (fats) are the 'mortar' that holds your skin cells together. Replenishing them helps lock in moisture and protect from irritation."
+      },
+      {
+        "name": "Bakuchiol",
+        "tagline": "The Gentle Alternative",
+        "description": "A plant-based ingredient that provides similar benefits to retinol (improving lines and texture) but is much gentler and better for sensitive skin."
+      }
+    ]
+  },
+  "fifties_plus": {
+    "age_range": [50, 100],
+    "title": "Your 50s & Beyond: The Nourish & Replenish Decade",
+    "summary": "Post-menopause, skin can become significantly drier and thinner. The goal now is to cherish your skin with rich, nourishing ingredients that provide comfort and replenish what time has taken away. Healthy, glowing, comfortable skin is the ultimate luxury.",
+    "common_concerns": ["Significant Dryness", "Thinning Skin", "Loss of Elasticity", "Deep-set Wrinkles"],
+    "focus_on": ["Rich Moisturization", "Gentle Care", "Replenishing"],
+    "spotlight_ingredients": [
+      {
+        "name": "Glycerin",
+        "tagline": "The Humble Humectant",
+        "description": "A classic, highly effective ingredient that draws moisture into the skin, providing lasting hydration and comfort for dry, mature skin."
+      },
+      {
+        "name": "Peptides",
+        "tagline": "The Building Blocks",
+        "description": "Still crucial in this decade to support skin structure and encourage a firmer, smoother appearance."
+      }
+    ]
+  }
+}

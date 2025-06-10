@@ -1,6 +1,6 @@
 // lib/main_screen.dart
 import 'package:flutter/material.dart';
-import 'package:skinsafe/UserProfile/multi_screen.dart';
+import 'package:skinsafe/UserProfile/profile_dashboard.dart';
 import 'package:skinsafe/AiSkinAnalysis/analysis_camera_page.dart'; // Import for navigation
 import 'package:skinsafe/routine_display_screen.dart';
 import 'package:skinsafe/new_home_screen.dart';
@@ -50,7 +50,7 @@ class MainScreenState extends State<MainScreen> {
     NewHomeScreen(
       onSwitchToProfile: () => _onItemTapped(1), // Switch to Profile tab
     ),
-    MultiPageSkinProfileScreen(
+    ProfileDashboard(
       onBackPressed: () => _onItemTapped(0), // Go back to Home tab
     ),
     const RoutineDisplayScreen(),

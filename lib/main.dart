@@ -111,7 +111,7 @@ class _MyAppState extends State<MyApp> {
     if (context == null) return;
     
     final isNewUser = user.lastSignInAt == null ||
-        DateTime.parse(user.lastSignInAt!).difference(DateTime.parse(user.createdAt!)).inSeconds < 3;
+        DateTime.parse(user.lastSignInAt!).difference(DateTime.parse(user.createdAt!)).inSeconds < 5;
         
     if (isNewUser) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Account created! Please log in.")));
@@ -124,7 +124,7 @@ class _MyAppState extends State<MyApp> {
   
   void _handleGoogleSignInEvent(User user) {
      final isNewUser = user.lastSignInAt == null ||
-        DateTime.parse(user.lastSignInAt!).difference(DateTime.parse(user.createdAt!)).inSeconds < 3;
+        DateTime.parse(user.lastSignInAt!).difference(DateTime.parse(user.createdAt!)).inSeconds < 5;
 
     if (isNewUser) {
       Supabase.instance.client.auth.signOut();

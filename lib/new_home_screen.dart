@@ -1,16 +1,18 @@
 // NewHomeScreen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:skinsafe/providers/skin_profile_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Import the new input screens
-import 'ProductAnalysis/ProductSafety/safety_input_screen.dart';   // Adjust path as per your project structure
-import 'ProductAnalysis/ProductSuitability/suitability_input_screen.dart'; // Adjust path as per your project structure
+import 'ProductAnalysis/ProductSafety/safety_input_screen.dart';
+import 'ProductAnalysis/ProductSuitability/suitability_input_screen.dart';
+import 'routine_display_screen.dart';
 
-import 'routine_display_screen.dart'; // Assuming this is still correct and used
+// NEW: Import the spotlight screen.
+// Note: Adjust the path if your file is in a different directory.
+import 'decade_guide_screen.dart';
 
-// Removed old/unused imports:
-// import 'home.dart'; // If not used
-// import 'searchProducts.dart'; // This was SafetyRatingLandingScreen
 
 class NewHomeScreen extends StatefulWidget {
   final VoidCallback onSwitchToProfile;
@@ -25,12 +27,12 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
   final _supabase = Supabase.instance.client;
 
   Future<void> _handleLogout() async {
+    // ... (logout logic is unchanged)
     if (!mounted) return;
     try {
+      context.read<SkinProfileProvider>().clearProfile();
       await _supabase.auth.signOut();
       print("User logged out successfully from NewHomeScreen.");
-      // After logout, you might want to navigate to a login screen
-      // Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => LoginScreen()), (route) => false);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -45,15 +47,20 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6FF), // Light lavender background
+      backgroundColor: const Color(0xFFFAF6FF),
       body: Column(
         children: [
-          _buildHeader(context),
+          Consumer<SkinProfileProvider>(
+            builder: (context, profileProvider, child) {
+              final username = profileProvider.username ?? 'User';
+              return _buildHeader(context, username);
+            },
+          ),
           Expanded(
             child: SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 40.0, vertical: 20.0), // Adjusted padding
+                    horizontal: 40.0, vertical: 20.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
@@ -66,13 +73,15 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => SuitabilityInputScreen( // <-- NAVIGATE TO NEW SCREEN
+                            builder: (context) => SuitabilityInputScreen(
                                 onSwitchToProfile: widget.onSwitchToProfile),
                           ),
                         );
                       },
                     ),
                     const SizedBox(height: 25),
+
+
                     _buildFeatureCard(
                       context,
                       imagePath: 'assets/skincare_routine_builder_logo.png',
@@ -95,8 +104,24 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => SafetyInputScreen( // <-- NAVIGATE TO NEW SCREEN
+                            builder: (context) => SafetyInputScreen(
                                 onSwitchToProfile: widget.onSwitchToProfile),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 25),
+
+                    // NEW: Add the Ingredient Spotlight feature card
+                    _buildFeatureCard(
+                      context,
+                      imagePath: 'assets/ingredient_spotlight.png', // Use your new image asset
+                      title: "Skincare Compass",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const DecadeGuideScreen(),
                           ),
                         );
                       },
@@ -111,7 +136,8 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, String username) {
+    // ... (header logic is unchanged)
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
@@ -145,25 +171,25 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
                 children: [
                   const CircleAvatar(
                     radius: 30,
-                    backgroundImage: AssetImage('assets/avatar.png'), // Ensure asset exists
+                    backgroundImage: AssetImage('assets/avatar.png'),
                     backgroundColor: Colors.white24,
                   ),
                   const SizedBox(width: 15),
-                  const Expanded( // Ensure text doesn't overflow
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Hello Molliie!", // Consider fetching actual user name
-                          style: TextStyle(
+                          "Hello $username!",
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
-                        SizedBox(height: 2),
-                        Text(
+                        const SizedBox(height: 2),
+                        const Text(
                           "View Profile",
                           style: TextStyle(
                             color: Colors.white70,
@@ -174,7 +200,7 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
                     ),
                   ),
                   const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 20),
-                  const SizedBox(width: 10), // Adjusted space before logout
+                  const SizedBox(width: 10),
                 ],
               ),
             ),
@@ -196,10 +222,11 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
     required String title,
     required VoidCallback onTap,
   }) {
+    // ... (this widget is unchanged)
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: double.infinity, // Takes full width of the parent padding
+        width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 15.0),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -214,11 +241,11 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
           ],
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min, // Important for Column inside SingleChildScrollView
+          mainAxisSize: MainAxisSize.min,
           children: [
             Image.asset(
               imagePath,
-              height: 100, // Slightly reduced height for better balance
+              height: 100,
               fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) {
                 print("Error loading asset image $imagePath: $error");
@@ -226,7 +253,7 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
                   height: 100,
                   color: Colors.grey[200],
                   child: Center(
-                      child: Icon(Icons.broken_image_outlined, // Changed icon
+                      child: Icon(Icons.broken_image_outlined,
                           size: 40, color: Colors.grey[400])),
                 );
               },
@@ -236,7 +263,7 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
               title,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 16, // Or use Theme.of(context).textTheme.titleMedium
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Colors.grey[800],
               ),

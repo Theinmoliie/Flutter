@@ -7,10 +7,9 @@ import 'package:skinsafe/AiSkinAnalysis/analysis_camera_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../UserProfile/skin_sensitivity_edit_page.dart';
 import '../UserProfile/skin_concerns_edit_page.dart';
-// Import the new generic edit page with its new name and path
 import 'generic_profile_field_edit_page.dart';
 
-// ProfileItem class remains the same...
+// ProfileItem model class
 class ProfileItem {
   final String title;
   final String? value;
@@ -25,23 +24,25 @@ class ProfileItem {
   });
 }
 
-class MultiPageSkinProfileScreen extends StatefulWidget {
+// Main Profile Dashboard Widget
+class ProfileDashboard extends StatefulWidget {
   final VoidCallback? onBackPressed;
 
-  const MultiPageSkinProfileScreen({
+  const ProfileDashboard({
     Key? key,
     this.onBackPressed,
   }) : super(key: key);
 
   @override
-  _MultiPageSkinProfileScreenState createState() =>
-      _MultiPageSkinProfileScreenState();
+  _ProfileDashboardState createState() =>
+      _ProfileDashboardState();
 }
 
-class _MultiPageSkinProfileScreenState
-    extends State<MultiPageSkinProfileScreen> {
+class _ProfileDashboardState
+    extends State<ProfileDashboard> {
   
-  // --- NEW: A single navigation method for generic fields ---
+  // --- Navigation Methods ---
+
   void _editGenericField(EditableProfileField field) {
     Navigator.push(
       context,
@@ -51,27 +52,61 @@ class _MultiPageSkinProfileScreenState
     );
   }
 
-  // --- The other edit methods remain the same ---
+  // THIS METHOD CONTAINS THE SKIN TYPE SAVING LOGIC
   void _editSkinType() {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => AnalysisCameraPage(
-          onAnalysisComplete: (String skinTypeName) {
-            // ... (rest of this method is unchanged)
+          // The onAnalysisComplete callback is where the saving happens.
+          // It's marked 'async' to allow for awaiting the database call.
+          onAnalysisComplete: (String skinTypeName) async {
             final profileProvider = Provider.of<SkinProfileProvider>(context, listen: false);
             final skinTypeData = profileProvider.getSkinTypeByName(skinTypeName);
+            
             if (skinTypeData != null) {
-              profileProvider.updateUserProfile(
-                skinTypeId: skinTypeData['skin_type_id'],
-                skinType: skinTypeData['skin_type'],
-              );
+              final skinTypeId = skinTypeData['skin_type_id'];
+              final skinType = skinTypeData['skin_type'];
+              final userId = Supabase.instance.client.auth.currentUser!.id;
+
+              try {
+                // UPDATE the 'profiles' table in Supabase with the new skin_type_id.
+                await Supabase.instance.client
+                    .from('profiles')
+                    .update({'skin_type_id': skinTypeId})
+                    .eq('id', userId);
+
+                // If the database save succeeds, update the local provider state.
+                if (mounted) {
+                  profileProvider.updateUserProfile(
+                    skinTypeId: skinTypeId,
+                    skinType: skinType,
+                  );
+                   ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Skin type updated to: $skinType"))
+                  );
+                }
+
+              } catch (e) {
+                 // Handle any errors during the database save.
+                 if (mounted) {
+                   ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Error saving skin type: $e"))
+                  );
+                }
+              }
             } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Error: Could not match skin type."))
-              );
+               // Handle the case where the analysis result doesn't match a known type.
+               if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Error: Could not match skin type."))
+                );
+              }
             }
-            Navigator.of(context).pop();
+            // Finally, close the camera page to return the user to the profile.
+            if (mounted) {
+              Navigator.of(context).pop();
+            }
           },
         ),
       ),
@@ -98,15 +133,15 @@ class _MultiPageSkinProfileScreenState
     
     return Consumer<SkinProfileProvider>(
       builder: (context, profileProvider, child) {
+        // Show a loading spinner while the provider is fetching initial data.
         if (profileProvider.isLoading) {
-          // ... (loading state is unchanged)
           return Scaffold(
             appBar: AppBar(title: const Text('Profile'), backgroundColor: colorScheme.primary, foregroundColor: Colors.white),
             body: const Center(child: CircularProgressIndicator()),
           );
         }
 
-        // --- THE FIX IS HERE: Update the onEdit callbacks ---
+        // Build the list of items from the provider's data.
         final List<ProfileItem> profileItems = [
           ProfileItem(
             title: "Username",
@@ -120,7 +155,6 @@ class _MultiPageSkinProfileScreenState
                    : DateFormat.yMMMMd().format(profileProvider.dateOfBirth!),
             onEdit: () => _editGenericField(EditableProfileField.dateOfBirth),
           ),
-          // --- The rest of the items are unchanged ---
           ProfileItem(
             title: "Skin Type",
             value: profileProvider.userSkinType,
@@ -141,7 +175,6 @@ class _MultiPageSkinProfileScreenState
         ];
 
         return Scaffold(
-          // ... (the rest of the build method, including the ListView and Card builder, is unchanged)
           backgroundColor: const Color(0xFFFAF6FF),
           appBar: AppBar(
             title: const Text('Profile', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -159,7 +192,7 @@ class _MultiPageSkinProfileScreenState
               const SizedBox(height: 12),
               Center(
                 child: Text(
-                  Supabase.instance.client.auth.currentUser?.email ?? 'No Email Found',
+                  Supabase.instance.client.auth.currentUser?.email ?? 'Anonymous',
                   style: TextStyle(fontSize: 16, color: Colors.grey[600], fontWeight: FontWeight.w500),
                 ),
               ),
@@ -172,8 +205,8 @@ class _MultiPageSkinProfileScreenState
     );
   }
 
+  // Helper widget to build each item card.
   Widget _buildProfileItemCard(BuildContext context, ProfileItem item) {
-    // ... (this widget is unchanged)
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,

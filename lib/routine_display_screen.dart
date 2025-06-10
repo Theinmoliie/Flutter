@@ -5,7 +5,7 @@ import 'package:collection/collection.dart'; // For SetEquality
 import '../providers/skin_profile_provider.dart';
 import '../services/skincare_routine_service.dart';
 import '../model/routine_models.dart';
-import '../UserProfile/multi_screen.dart'; // For navigation
+import 'UserProfile/profile_dashboard.dart'; // For navigation
 
 enum RoutineTime { morning, night }
 
@@ -91,7 +91,7 @@ class _RoutineDisplayScreenState extends State<RoutineDisplayScreen> {
       MaterialPageRoute(
         // The MultiPageSkinProfileScreen now handles its own state.
         // The `onBackPressed` is sufficient for navigation.
-        builder: (context) => MultiPageSkinProfileScreen(
+        builder: (context) => ProfileDashboard(
           onBackPressed: () => Navigator.of(context).pop(),
         ),
       ),

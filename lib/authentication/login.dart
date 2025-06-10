@@ -1,6 +1,7 @@
 // lib/authentication/login.dart
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'forgot_password_screen.dart'; // We will create this screen next
 
 class LoginScreen extends StatefulWidget {
   // No longer needs a callback.
@@ -46,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
         await _supabase.auth.signOut();
       } else {
         scaffoldMessenger.showSnackBar(
-          SnackBar(content: Text("Login Failed: ${e.message}")),
+          SnackBar(backgroundColor: Colors.red,content: Text("Login Failed: ${e.message}")),
         );
       }
     } catch (e) {
@@ -73,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } on AuthException catch (e) {
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text("Google Sign In Failed: ${e.message}")),
+        SnackBar(backgroundColor: Colors.red,content: Text("Google Sign In Failed: ${e.message}")),
       );
     } catch (e) {
       scaffoldMessenger.showSnackBar(
@@ -108,10 +109,31 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 30),
                 TextFormField(controller: _emailController, decoration: InputDecoration(labelText: "Email", prefixIcon: Icon(Icons.email_outlined, color: colorScheme.primary), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)), filled: true, fillColor: colorScheme.surfaceVariant.withOpacity(0.3), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide(color: Colors.grey.shade400)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide(color: colorScheme.primary, width: 1.5))), keyboardType: TextInputType.emailAddress),
                 const SizedBox(height: 15),
-                TextFormField(controller: _passwordController, decoration: InputDecoration(labelText: "Password", prefixIcon: Icon(Icons.lock_outline, color: colorScheme.primary), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)), filled: true, fillColor: colorScheme.surfaceVariant.withOpacity(0.3), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide(color: Colors.grey.shade400)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide(color: colorScheme.primary, width: 1.5))), obscureText: true),
-                const SizedBox(height: 30),
+                TextFormField(controller: _passwordController, decoration: InputDecoration(labelText: "Password", prefixIcon: Icon(Icons.lock_outline, color: colorScheme.primary), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)), filled: true, fillColor: colorScheme.surfaceVariant.withOpacity(0.3), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide(color: Colors.grey.shade400)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide(color: colorScheme.primary, width: 1.5))), obscureText: true),                              
+                const SizedBox(height: 15),
                 ElevatedButton(onPressed: _isLoading ? null : _handleLogin, style: ElevatedButton.styleFrom(backgroundColor: colorScheme.primary, foregroundColor: colorScheme.onPrimary, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)), elevation: 2), child: Text(_isLoading ? "Logging In..." : "Log In")),
-                const SizedBox(height: 25),
+                // --- START: FORGOT PASSWORD BUTTON ---
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ForgotPasswordScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Forgot Password?',
+                        style: TextStyle(color: colorScheme.primary),
+                      ),
+                    ),
+                  ),
+                ),
+                // --- END: FORGOT PASSWORD BUTTON ---
                 Row(
                   children: [
                     Expanded(child: Divider(thickness: 1, color: Colors.grey.shade300)),

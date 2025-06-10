@@ -8,6 +8,7 @@ import 'Supabase/supabase_config.dart';
 import 'authentication/register.dart';
 import 'authentication/login.dart';
 import 'main_screen.dart';
+import 'authentication/update_password_screen.dart';
 import 'providers/skin_profile_provider.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -40,6 +41,17 @@ class _MyAppState extends State<MyApp> {
       final session = data.session;
       final user = session?.user;
 
+      // --- ADD THIS NEW LOGIC ---
+      if (event == AuthChangeEvent.passwordRecovery) {
+        // This event fires when the user clicks the password reset link.
+        // It provides a session, so we can navigate them to the update password screen.
+        navigatorKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const UpdatePasswordScreen()),
+          (route) => false,
+        );
+      }
+      // --- END OF NEW LOGIC ---
+      
       if (event == AuthChangeEvent.signedIn && user != null) {
         
         // --- THIS IS THE FINAL, CRITICAL FIX ---

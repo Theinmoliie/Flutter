@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RegisterScreen extends StatefulWidget {
+  // This is no longer used but can be left in if you re-add specific Google sign-up logic.
+  // For the unified "Continue with Google", it's not needed.
+  // final VoidCallback onGoogleSignUp;
+
   // No longer needs a callback.
   const RegisterScreen({Key? key}) : super(key: key);
 
@@ -16,6 +20,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
 
+  // --- START: NEW FORM KEY ---
+  // This key will be used to identify and validate our form.
+  final _formKey = GlobalKey<FormState>();
+  // --- END: NEW FORM KEY ---
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -23,8 +32,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  // This function is for email/password and is correct.
+  // This function is for email/password and is now validated.
   Future<void> _handleSignUp() async {
+    // --- START: VALIDATE THE FORM FIRST ---
+    // If the form is not valid, do nothing. The validator will show the errors.
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    // --- END: VALIDATE THE FORM FIRST ---
+
     setState(() => _isLoading = true);
     final currentContext = context;
 
@@ -40,7 +56,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (mounted) {
         ScaffoldMessenger.of(currentContext).showSnackBar(
           const SnackBar(
-            content: Text("Account created! Please check your email for a confirmation link."),
+            backgroundColor: Colors.green,
+            content: Text(
+              "Account created! Please check your email for a confirmation link.",
+            ),
             duration: Duration(seconds: 5),
           ),
         );
@@ -48,9 +67,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(currentContext).showSnackBar(
-          SnackBar(content: Text("Sign Up Failed: ${e.message}")),
-        );
+        ScaffoldMessenger.of(
+          currentContext,
+        ).showSnackBar(SnackBar (backgroundColor: Colors.red,content: Text("Sign Up Failed: ${e.message}")));
       }
     } catch (e) {
       if (mounted) {
@@ -77,13 +96,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
         redirectTo: 'io.supabase.flutter://login-callback',
       );
     } on AuthException catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text("Google Sign Up Failed: ${e.message}")),
-      );
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(backgroundColor: Colors.red,content: Text("Google Sign Up Failed: ${e.message}")),
+        );
+      }
     } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text("An unexpected error occurred: $e")),
-      );
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text("An unexpected error occurred: $e")),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -101,46 +124,140 @@ class _RegisterScreenState extends State<RegisterScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 40.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 50.0),
-                Image.asset('assets/skinsafeLogo.png', height: 80),
-                const SizedBox(height: 30),
-                Text("Sign Up", textAlign: TextAlign.center, style: textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.onBackground)),
-                const SizedBox(height: 30),
-                TextFormField(controller: _emailController, decoration: InputDecoration(labelText: "Email", prefixIcon: Icon(Icons.email_outlined, color: colorScheme.primary), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)), filled: true, fillColor: colorScheme.surfaceVariant.withOpacity(0.3), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide(color: Colors.grey.shade400, width: 1.0)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide(color: colorScheme.primary, width: 1.5))), keyboardType: TextInputType.emailAddress),
-                const SizedBox(height: 15),
-                TextFormField(controller: _passwordController, decoration: InputDecoration(labelText: "Password", prefixIcon: Icon(Icons.lock_outline, color: colorScheme.primary), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)), filled: true, fillColor: colorScheme.surfaceVariant.withOpacity(0.3), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide(color: Colors.grey.shade400, width: 1.0)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide(color: colorScheme.primary, width: 1.5))), obscureText: true),
-                const SizedBox(height: 30),
-                ElevatedButton(onPressed: _isLoading ? null : _handleSignUp, style: ElevatedButton.styleFrom(backgroundColor: colorScheme.primary, foregroundColor: colorScheme.onPrimary, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)), elevation: 2), child: Text(_isLoading ? "Creating Account..." : "Sign Up")),
-                const SizedBox(height: 25),
-                Row(
-                  children: [
-                    Expanded(child: Divider(thickness: 1, color: Colors.grey.shade300)),
-                    Padding(padding: const EdgeInsets.symmetric(horizontal: 12.0), child: Text('Or continue with', style: textTheme.bodySmall?.copyWith(color: Colors.grey.shade600))),
-                    Expanded(child: Divider(thickness: 1, color: Colors.grey.shade300)),
-                  ],
-                ),
-                const SizedBox(height: 25),
-                OutlinedButton.icon(
-                  icon: Image.asset('assets/google_logo.png', height: 20.0),
-                  label: const Text("Continue with Google"),
-                  onPressed: _isLoading ? null : _handleGoogleAuth,
-                  style: OutlinedButton.styleFrom(foregroundColor: colorScheme.onBackground, padding: const EdgeInsets.symmetric(vertical: 14), side: BorderSide(color: Colors.grey.shade400), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0))),
-                ),
-                const SizedBox(height: 30),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text("Already have an account?", style: textTheme.bodyMedium),
-                    TextButton(onPressed: () => Navigator.pushReplacementNamed(context, '/login'), style: TextButton.styleFrom(foregroundColor: colorScheme.primary, padding: const EdgeInsets.symmetric(horizontal: 4.0)), child: const Text("Log In")),
-                  ],
-                ),
-              ],
+            padding: const EdgeInsets.symmetric(
+              horizontal: 30.0,
+              vertical: 40.0,
             ),
+            // --- START: WRAP WITH FORM WIDGET ---
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 50.0),
+                  Image.asset('assets/skinsafeLogo.png', height: 80),
+                  const SizedBox(height: 30),
+                  Text(
+                    "Sign Up",
+                    textAlign: TextAlign.center,
+                    style: textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onBackground,
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: InputDecoration(
+                      labelText: "Email",
+                      prefixIcon: Icon(
+                        Icons.email_outlined,
+                        color: colorScheme.primary,
+                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
+                      filled: true,
+                      fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide(color: Colors.grey.shade400, width: 1.0)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide(color: colorScheme.primary, width: 1.5)),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (value) {
+                      if (value == null || value.isEmpty || !value.contains('@')) {
+                        return 'Please enter a valid email address';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 15),
+                  TextFormField(
+                    controller: _passwordController,
+                    decoration: InputDecoration(
+                      labelText: "Password",
+                      prefixIcon: Icon(
+                        Icons.lock_outline,
+                        color: colorScheme.primary,
+                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
+                      filled: true,
+                      fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide(color: Colors.grey.shade400, width: 1.0)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide(color: colorScheme.primary, width: 1.5)),
+                    ),
+                    obscureText: true,
+                    // --- START: ADD PASSWORD VALIDATOR ---
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Password cannot be empty';
+                      }
+                      if (value.length < 6) {
+                        return 'Password must be at least 6 characters';
+                      }
+                      // RegEx to check for at least one letter and one digit
+                      final hasLetter = RegExp(r'[a-zA-Z]').hasMatch(value);
+                      final hasDigit = RegExp(r'[0-9]').hasMatch(value);
+                      if (!hasLetter || !hasDigit) {
+                        return 'Password must contain both letters and digits';
+                      }
+                      return null; // Return null if the password is valid
+                    },
+                    // --- END: ADD PASSWORD VALIDATOR ---
+                  ),
+                  
+                  const SizedBox(height: 30),
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _handleSignUp,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+                      elevation: 2,
+                    ),
+                    child: Text(_isLoading ? "Creating Account..." : "Sign Up"),
+                  ),
+                  const SizedBox(height: 25),
+                  Row(
+                    children: [
+                      Expanded(child: Divider(thickness: 1, color: Colors.grey.shade300)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                        child: Text('Or continue with', style: textTheme.bodySmall?.copyWith(color: Colors.grey.shade600)),
+                      ),
+                      Expanded(child: Divider(thickness: 1, color: Colors.grey.shade300)),
+                    ],
+                  ),
+                  const SizedBox(height: 25),
+                  OutlinedButton.icon(
+                    icon: Image.asset('assets/google_logo.png', height: 20.0),
+                    label: const Text("Continue with Google"),
+                    onPressed: _isLoading ? null : _handleGoogleAuth,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colorScheme.onBackground,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: BorderSide(color: Colors.grey.shade400),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text("Already have an account?", style: textTheme.bodyMedium),
+                      TextButton(
+                        onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: colorScheme.primary,
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        ),
+                        child: const Text("Log In"),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // --- END: WRAP WITH FORM WIDGET ---
           ),
         ),
       ),

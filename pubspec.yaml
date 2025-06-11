@@ -31,6 +31,7 @@ dependencies:
   collection: ^1.19.1
   crop_image: ^1.0.10  # Check pub.dev for the latest stable version
   intl: ^0.20.2
+  http_parser: ^4.0.2
 
 dev_dependencies:
   flutter_test:

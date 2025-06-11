@@ -1,20 +1,23 @@
 // lib/review_selfie.dart
+
 import 'dart:io';
 import 'dart:ui'; // Required for Rect
-import 'package:flutter/foundation.dart'; // For kDebugMode
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:skinsafe/services/tflite_service.dart'; // Adjust path if needed
+
+// --- (1) IMPORT THE NEW SERVICE ---
+import 'package:skinsafe/services/gemini_service.dart'; // Adjust path if needed
 import 'skin_analysis_result.dart';
 
 class ResultPage extends StatefulWidget {
   final String imagePath;
   final bool isFrontCamera;
-  final Rect faceBoundingBox; // Received from CameraPage
+  final Rect faceBoundingBox; // Although not used by Gemini, we keep it for consistency
 
   const ResultPage({
     Key? key,
     required this.imagePath,
-    required this.faceBoundingBox, // Make required
+    required this.faceBoundingBox,
     this.isFrontCamera = true,
   }) : super(key: key);
 
@@ -24,25 +27,29 @@ class ResultPage extends StatefulWidget {
 
 class _ResultPageState extends State<ResultPage> {
   bool _isLoading = false;
-  final TfliteService _tfliteService = TfliteService();
+  
+  // --- (2) INSTANTIATE THE NEW SERVICE ---
+  final GeminiService _geminiService = GeminiService();
 
   @override
   void initState() {
     super.initState();
-    // Load models when the page is initialized to ensure they are ready.
-    _tfliteService.loadModels(); 
+    // No models to load anymore
   }
 
   @override
   void dispose() {
-    _tfliteService.dispose();
+    // No TFLite service to dispose
     super.dispose();
   }
 
+  // --- (3) THE FULLY UPDATED ANALYSIS METHOD ---
   Future<void> _analyseSkin() async {
     if (_isLoading) return;
-    setState(() { _isLoading = true; });
-    
+    setState(() {
+      _isLoading = true;
+    });
+
     // Show a loading indicator while processing
     showDialog(
       context: context,
@@ -53,27 +60,24 @@ class _ResultPageState extends State<ResultPage> {
     try {
       final File imageFile = File(widget.imagePath);
 
-      // Call the TFLite service, which now returns a nullable Prediction object.
-      final Prediction? result = await _tfliteService.predictImage(
-        imageFile: imageFile,
-        faceBoundingBox: widget.faceBoundingBox,
-      );
+      // Call the Gemini service. It directly returns the skin type string or null.
+      final String? resultSkinType = await _geminiService.analyzeSkinType(imageFile);
 
       // Dismiss the loading dialog
       if (mounted) Navigator.pop(context);
       if (!mounted) return;
 
-      // *** THE FIX IS HERE: Check if the result is not null ***
-      if (result != null) {
+      // Check if the result is not null
+      if (resultSkinType != null) {
         // If we have a valid result, navigate to the AnalysisPage.
-        // We need to await the final result from AnalysisPage if the user confirms.
+        // We await the final result from AnalysisPage if the user confirms.
         final String? finalResult = await Navigator.push<String>(
           context,
           MaterialPageRoute(
             builder: (context) => AnalysisPage(
-              // Pass the properties from the Prediction object
-              skinType: result.label,
-              confidence: result.confidence,
+              skinType: resultSkinType,
+              // Confidence isn't directly applicable from Gemini in this setup
+              confidence: 1.0, 
               imagePath: widget.imagePath,
               isFrontCamera: widget.isFrontCamera,
             ),
@@ -83,25 +87,25 @@ class _ResultPageState extends State<ResultPage> {
         // If AnalysisPage popped with a result (meaning the user saved it),
         // we pop this page as well and pass that result down the navigation stack.
         if (finalResult != null && mounted) {
-            Navigator.of(context).pop(finalResult);
+          Navigator.of(context).pop(finalResult);
         }
 
       } else {
-        // If result is null, it means prediction failed in the service.
+        // If result is null, it means analysis failed or was uncertain.
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Skin analysis failed. Please try again.'),
+            content: Text('Could not determine skin type. Please try again with a clear photo.'),
             backgroundColor: Colors.redAccent,
           ),
         );
         if (kDebugMode) {
-          debugPrint("[ReviewScreen] TFLite service returned a null result.");
+          debugPrint("[ReviewScreen] Gemini service returned a null or 'Uncertain' result.");
         }
       }
-    } catch (e, stackTrace) {
-      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // Also dismiss on error
       if (mounted) {
-        debugPrint("[ReviewScreen] Unexpected error during analysis: $e\n$stackTrace");
+        debugPrint("[ReviewScreen] Unexpected error during analysis: $e");
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('An unexpected error occurred. Please try again.'),
@@ -173,7 +177,7 @@ class _ResultPageState extends State<ResultPage> {
                 : ElevatedButton.icon(
                     icon: const Icon(Icons.analytics_outlined),
                     label: const Text('Analyze Skin Type'),
-                    onPressed: _analyseSkin,
+                    onPressed: _analyseSkin, // This button now triggers the Gemini call
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colorScheme.primary,
                       foregroundColor: colorScheme.onPrimary,

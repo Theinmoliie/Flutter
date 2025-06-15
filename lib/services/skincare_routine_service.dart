@@ -17,23 +17,23 @@ class SkincareRoutineService {
   // --- IMPORTANT: REPLACE 'YOUR_COMPUTER_IP_ADDRESS' with your actual IP ---
   // ---      when testing with a physical device on the same Wi-Fi.     ---
   static const String _localDevAndroidEmulatorBaseUrl = 'http://10.0.2.2:8000';
-  static const String _localDevPhysicalOrIOSBaseUrl = 'http://192.168.185.43:8000'; // <<<<<<< CHANGE THIS
+  static const String _localDevPhysicalOrIOSBaseUrl = 'http://192.168.121.43:8000'; // <<<<<<< CHANGE THIS
+static const String _productionBaseUrl = 'https://chillicrab11-skincare-backend.hf.space'; // <<<<<<< Deployed backend URL
 
-  static const String _productionBaseUrl = 'https://your-deployed-api.com'; // <<<<<<< CHANGE THIS IF DEPLOYED
+   String get _baseUrl {
+    // Temporarily force the app to use the live, deployed URL for all testing.
+    return _productionBaseUrl;
 
-  String get _baseUrl {
+    /*
+    // --- The original logic to restore later ---
     if (kDebugMode) {
-      // You might need a way to differentiate between emulator and physical device in debug
-      // For simplicity, let's assume physical device if not web and not emulator
-      // This detection is not foolproof. Better to use environment variables for Flutter.
-      // For now, manually switch or use a more robust detection if needed.
-      // return _localDevAndroidEmulatorBaseUrl; // Use this for Android Emulator
-      return _localDevPhysicalOrIOSBaseUrl; // Use this for physical device / iOS Sim
+      return _localDevPhysicalOrIOSBaseUrl;
     } else {
-      return _productionBaseUrl;
+      return _productionBase.url;
     }
+    */
   }
-
+  
   Future<SkincareRoutine?> buildRoutine({
     required int? skinTypeId,
     required String? sensitivity, // "Yes" or "No"

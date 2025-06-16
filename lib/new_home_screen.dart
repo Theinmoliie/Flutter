@@ -115,7 +115,7 @@ class _NewHomeScreenState extends State<NewHomeScreen> {
                     // NEW: Add the Ingredient Spotlight feature card
                     _buildFeatureCard(
                       context,
-                      imagePath: 'assets/ingredient_spotlight.png', // Use your new image asset
+                      imagePath: 'assets/skin compass.png', // Use your new image asset
                       title: "Skincare Compass",
                       onTap: () {
                         Navigator.push(

@@ -52,7 +52,7 @@ flutter:
     - assets/check_product_safety_rating_logo.png
     - assets/skincare_product_suitability_logo.png
     - assets/avatar.png
-    - assets/ingredient_spotlight.png
+    - assets/skin compass.png
 
     - assets/models/skin_type_model16.tflite # Assuming you place models here ( 4 classes)
     - assets/models/skin_type_model32.tflite # Assuming you place models here ( 4 classes)
